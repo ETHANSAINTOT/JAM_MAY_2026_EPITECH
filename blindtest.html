@@ -388,15 +388,63 @@
     gap: 14px; padding: 24px 0 10px;
   }
   .vinyl {
-    width: 110px; height: 110px; border-radius: 50%;
-    background: radial-gradient(circle at 50% 50%,
-      #2a1a45 30%, #1a0f2e 31%, #1a0f2e 46%, rgba(255,194,60,0.35) 47%,
-      #1a0f2e 48%, #1a0f2e 100%);
-    border: 3px solid rgba(255,194,60,0.25);
-    box-shadow: 0 0 30px rgba(0,0,0,0.6);
-    transition: transform .3s;
+    position: relative;
+    width: 160px; height: 160px; border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 50%,
+        #c8a84b 0%,  #c8a84b 14%,
+        #1a0f2e 15%, #1a0f2e 18%,
+        #111 19%,    #111 22%,
+        #1a0f2e 23%, #1a0f2e 27%,
+        #111 28%,    #111 32%,
+        #1a0f2e 33%, #1a0f2e 37%,
+        #111 38%,    #111 42%,
+        #1a0f2e 43%, #1a0f2e 47%,
+        #111 48%,    #111 52%,
+        #1a0f2e 53%, #1a0f2e 100%
+      );
+    box-shadow:
+      0 0 0 3px rgba(255,194,60,0.2),
+      0 8px 40px rgba(0,0,0,0.8),
+      inset 0 0 30px rgba(0,0,0,0.6);
+    transition: box-shadow .4s;
   }
-  .vinyl.spinning { animation: spin 2.5s linear infinite; }
+  /* Reflet simulant l'éclairage oblique */
+  .vinyl::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(
+      rgba(255,255,255,0.07) 0deg,
+      transparent 60deg,
+      rgba(255,255,255,0.03) 180deg,
+      transparent 240deg,
+      rgba(255,255,255,0.07) 360deg
+    );
+    pointer-events: none;
+  }
+  /* Étiquette centrale */
+  .vinyl::after {
+    content: '♪';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #c8a84b 0%, #a07828 100%);
+    box-shadow: 0 0 8px rgba(200,168,75,0.6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; line-height: 44px; text-align: center;
+    color: #1a0f2e;
+  }
+  .vinyl.spinning {
+    animation: spin 2s linear infinite;
+    box-shadow:
+      0 0 0 3px rgba(255,194,60,0.35),
+      0 8px 40px rgba(0,0,0,0.8),
+      0 0 24px rgba(255,194,60,0.2),
+      inset 0 0 30px rgba(0,0,0,0.6);
+  }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .game-status-label {
@@ -767,7 +815,7 @@
         </div>
 
         <div class="footer-nav">
-          <button class="btn btn-secondary" onclick="go('menu')">⏹ Quitter</button>
+          <button class="btn btn-secondary" onclick="quitGame()">⏹ Quitter</button>
         </div>
       </div>
     </section>
@@ -797,7 +845,7 @@
         <p class="winner-banner" id="winnerBanner"></p>
         <div class="podium" id="podium"></div>
         <div class="footer-nav">
-          <button class="btn btn-secondary" onclick="go('menu')">← Menu</button>
+          <button class="btn btn-secondary" onclick="quitGame()">← Menu</button>
           <button class="btn btn-primary" onclick="replayGame()">↺ Rejouer</button>
         </div>
       </div>
@@ -1299,6 +1347,19 @@ function toggleMenuMusic() {
     'Musique : ' + (GAME.menuMusicOn ? 'ON' : 'OFF');
   // >>> HOOK Membre 4 : play()/pause() de l'élément <audio> de Let's Groove <<<
   console.log('[STUB] toggleMenuMusic() ->', GAME.menuMusicOn);
+}
+
+/* =========================================================================
+   QUITTER UNE PARTIE EN COURS
+   ========================================================================= */
+function quitGame() {
+  clearTimeout(_clipTimeout);
+  clearTimeout(_resultTimer);
+  clearInterval(GAME.answerTimer);
+  document.getElementById('gameAudio').pause();
+  document.getElementById('vinyl').classList.remove('spinning');
+  GAME.gamePhase = 'idle';
+  go('menu');
 }
 
 /* =========================================================================
