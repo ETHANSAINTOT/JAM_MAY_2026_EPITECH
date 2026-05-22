@@ -287,6 +287,67 @@
   }
   .config-error.visible { display: block; }
 
+  /* ----- Paramètres : layout deux cartes côte à côte ----- */
+  #screen-settings { align-self: stretch; }
+  .settings-outer {
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+    width: 100%;
+  }
+  @media (max-width: 680px) { .settings-outer { flex-direction: column; } }
+
+  /* Carte Hank (gauche) */
+  .hank-card {
+    flex: 0 0 260px;
+    border: 1px solid rgba(255,194,60,0.15);
+    border-radius: var(--radius);
+    background: linear-gradient(160deg, rgba(42,26,69,0.85), rgba(26,15,46,0.85));
+    backdrop-filter: blur(6px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+    text-align: center;
+    transition: border-color .3s;
+  }
+  .hank-card.detected { border-color: rgba(29,158,117,0.5); }
+  .hank-card img {
+    width: 100%;
+    flex: 1;
+    object-fit: cover;
+    object-position: top;
+    min-height: 0;
+  }
+  .hank-card .hank-msg {
+    width: 100%;
+    padding: 14px;
+    font-size: 13px;
+    color: #b9add4;
+    font-style: italic;
+    background: rgba(0,0,0,0.35);
+    transition: color .3s;
+  }
+  .hank-card.detected .hank-msg { color: #7be0c0; }
+
+  /* Carte paramètres (droite) */
+  .settings-card {
+    flex: 1;
+  }
+  .settings-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 26px;
+  }
+  @media (max-width: 680px) { .settings-panel { grid-template-columns: 1fr; } }
+  /* Preview caméra moins haute pour garder un ratio paysage */
+  #screen-settings .cam-preview { aspect-ratio: 16/9; }
+
   /* ----- Écran reconnaissance ----- */
   .recog-stage { text-align: center; }
   .recog-name {
@@ -461,39 +522,54 @@
 
     <!-- ===================== ÉCRAN 2 : PARAMÈTRES ===================== -->
     <section class="screen" id="screen-settings">
-      <div class="card">
-        <h2 class="screen-title">Paramètres</h2>
-        <p class="hint">Vérifie que ton micro et ta caméra fonctionnent avant de lancer une partie.</p>
+      <div class="settings-outer">
 
-        <div class="test-grid">
-          <!-- ----- Test caméra ----- -->
-          <div class="test-box">
-            <h3>🎥 Caméra</h3>
-            <p>On l'utilise pour détecter la main levée.</p>
-            <div class="cam-preview" id="settingsCamPreview">Aperçu caméra</div>
-            <!-- >>> HOOK CAMÉRA TEST (Membre 2) <<<
-                 testCamera() doit : demander l'accès webcam, afficher le flux dans
-                 #settingsCamPreview, puis appeler setStatus('camStatus', true/false). -->
-            <button class="btn btn-ghost" onclick="testCamera()">Tester la caméra</button>
-            <div style="margin-top:12px"><span class="status" id="camStatus">Non testé</span></div>
+        <!-- Carte Hank (gauche) -->
+        <!-- >>> HOOK CAMÉRA (Membre 2) : appeler setHankMood(true/false) en temps réel <<< -->
+        <div class="hank-card" id="hankFeedback">
+          <img id="hankImg" src="assets/images/hank-angry.png" alt="Hank">
+          <span class="hank-msg" id="hankMsg">Lève la main, bon sang !</span>
+          <button class="btn btn-ghost" style="width:100%;border-radius:0;font-size:12px;padding:8px"
+            onmousedown="setHankMood(true)" onmouseup="setHankMood(false)" ontouchstart="setHankMood(true)" ontouchend="setHankMood(false)">
+            ✋ Maintenir = main levée (debug)
+          </button>
+        </div>
+
+        <!-- Carte paramètres (droite) -->
+        <div class="card settings-card">
+          <h2 class="screen-title">Paramètres</h2>
+          <p class="hint">Vérifie que ton micro et ta caméra fonctionnent avant de lancer une partie.</p>
+
+          <div class="settings-panel">
+            <!-- Test caméra -->
+            <div class="test-box">
+              <h3>🎥 Caméra</h3>
+              <p>On l'utilise pour détecter la main levée.</p>
+              <div class="cam-preview" id="settingsCamPreview">Aperçu caméra</div>
+              <!-- >>> HOOK CAMÉRA TEST (Membre 2) <<<
+                   testCamera() : accès webcam → flux dans #settingsCamPreview
+                   → setStatus('camStatus', true/false) -->
+              <button class="btn btn-ghost" onclick="testCamera()">Tester la caméra</button>
+              <div style="margin-top:12px"><span class="status" id="camStatus">Non testé</span></div>
+            </div>
+
+            <!-- Test micro -->
+            <div class="test-box">
+              <h3>🎤 Micro</h3>
+              <p>On l'utilise pour capter ta réponse vocale.</p>
+              <div class="mic-meter"><span id="micLevel"></span></div>
+              <!-- >>> HOOK MICRO TEST (Membre 3) <<<
+                   testMic() : accès micro → animer #micLevel → setStatus('micStatus', true/false) -->
+              <button class="btn btn-ghost" onclick="testMic()">Tester le micro</button>
+              <div style="margin-top:12px"><span class="status" id="micStatus">Non testé</span></div>
+            </div>
           </div>
 
-          <!-- ----- Test micro ----- -->
-          <div class="test-box">
-            <h3>🎤 Micro</h3>
-            <p>On l'utilise pour capter ta réponse vocale.</p>
-            <div class="mic-meter"><span id="micLevel"></span></div>
-            <!-- >>> HOOK MICRO TEST (Membre 3) <<<
-                 testMic() doit : demander l'accès micro, animer la largeur de #micLevel
-                 selon le volume capté, puis appeler setStatus('micStatus', true/false). -->
-            <button class="btn btn-ghost" onclick="testMic()">Tester le micro</button>
-            <div style="margin-top:12px"><span class="status" id="micStatus">Non testé</span></div>
+          <div class="footer-nav">
+            <button class="btn btn-secondary" onclick="go('menu')">← Retour</button>
           </div>
         </div>
 
-        <div class="footer-nav">
-          <button class="btn btn-secondary" onclick="go('menu')">← Retour</button>
-        </div>
       </div>
     </section>
 
@@ -786,6 +862,17 @@ function bumpScore(playerIndex) {
   void chip.offsetWidth; // force reflow pour relancer l'animation
   chip.classList.add('bump');
   chip.addEventListener('animationend', () => chip.classList.remove('bump'), { once: true });
+}
+
+/* =========================================================================
+   HANK FEEDBACK — écran paramètres
+   Appelé par le membre 2 en temps réel pendant le test caméra.
+   setHankMood(true) = main détectée, setHankMood(false) = rien détecté.
+   ========================================================================= */
+function setHankMood(detected) {
+  document.getElementById('hankFeedback').classList.toggle('detected', detected);
+  document.getElementById('hankImg').src = detected ? 'assets/images/hank-happy.png' : 'assets/images/hank-angry.png';
+  document.getElementById('hankMsg').textContent = detected ? 'Main détectée, bien joué !' : 'Lève la main, bon sang !';
 }
 
 /* =========================================================================
