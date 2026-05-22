@@ -106,6 +106,33 @@
   .audio-pill.muted .dot { background: #6a5f7a; animation: none; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
+  /* ----- Overlay Saul (référence pop culture) ----- */
+  #saulOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0,0,0,0.72);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 18px;
+    animation: fadeUp .25s ease both;
+  }
+  #saulOverlay.active { display: flex; }
+  #saulOverlay img {
+    width: min(340px, 80vw);
+    border-radius: 20px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.7);
+  }
+  #saulOverlay .saul-label {
+    font-family: var(--font-display);
+    font-size: clamp(22px, 5vw, 38px);
+    text-align: center;
+  }
+  #saulOverlay .saul-label.good { color: #7be0c0; }
+  #saulOverlay .saul-label.bad  { color: #ff9b9b; }
+
   /* ----- Conteneur des écrans ----- */
   main { flex: 1; display: flex; align-items: center; justify-content: center; }
 
@@ -273,6 +300,36 @@
   }
 
   .footer-nav { margin-top: 26px; display: flex; gap: 12px; }
+
+  /* ----- Barre de debug ----- */
+  #debugBar {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  #debugBar button {
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 14px;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    opacity: 0.85;
+  }
+  #debugBar button:hover { opacity: 1; }
+  .dbg-label {
+    font-size: 10px;
+    color: #6a5f7a;
+    text-align: right;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
 </style>
 </head>
 <body>
@@ -415,6 +472,20 @@
   </main>
 </div>
 
+<!-- Barre de debug -->
+<div id="debugBar" style="display:none">
+  <span class="dbg-label">debug</span>
+  <button style="background:#7be0c0;color:#1a0f2e" onclick="showSaul(true)">✅ Bonne réponse</button>
+  <button style="background:#ff9b9b;color:#1a0f2e" onclick="showSaul(false)">❌ Mauvaise réponse</button>
+  <button style="background:#ffc23c;color:#1a0f2e" onclick="playerRecognized()">✋ Main levée (recog)</button>
+</div>
+
+<!-- Overlay Saul Goodman — référence pop culture -->
+<div id="saulOverlay">
+  <img id="saulImg" src="" alt="Saul">
+  <div id="saulLabel" class="saul-label"></div>
+</div>
+
 <script>
 /* =========================================================================
    ÉTAT GLOBAL DU JEU
@@ -437,6 +508,7 @@ function go(screen) {
   document.getElementById('screen-' + screen).classList.add('active');
   GAME.screen = screen;
   if (screen === 'config') renderPlayerInputs();
+  document.getElementById('debugBar').style.display = screen === 'game' ? 'flex' : 'none';
 }
 
 /* =========================================================================
@@ -544,6 +616,26 @@ function renderScoreboard() {
     .join('');
 }
 
+/* =========================================================================
+   OVERLAY SAUL GOODMAN — référence pop culture
+   Appeler showSaul(true) pour bonne réponse, showSaul(false) pour mauvaise.
+   S'efface automatiquement après 2 secondes.
+   ========================================================================= */
+let _saulTimer = null;
+function showSaul(correct) {
+  const overlay = document.getElementById('saulOverlay');
+  const img     = document.getElementById('saulImg');
+  const label   = document.getElementById('saulLabel');
+
+  img.src = correct ? 'assets/images/saul_good.jpg' : 'assets/images/saul_bad.jpg';
+  label.textContent = correct ? 'Better Call Saul !' : 'It\'s all bad, man…';
+  label.className = 'saul-label ' + (correct ? 'good' : 'bad');
+
+  overlay.classList.add('active');
+  clearTimeout(_saulTimer);
+  _saulTimer = setTimeout(() => overlay.classList.remove('active'), 2000);
+}
+
 /* ----- STUBS du cœur de jeu (Membre 4) ----- */
 function playAudioClip() {
   console.log('[STUB] playAudioClip() — jouer un extrait du blind test (membre 4)');
@@ -555,7 +647,9 @@ function onPlayerBuzz(playerIndex) {
 function checkAnswer(transcript) {
   // Appelé par le membre 3 avec le texte capté au micro.
   // Doit renvoyer/attribuer : 3 pts (titre OU artiste), 5 pts (les deux).
+  // >>> Appeler showSaul(true/false) selon le résultat <<<
   console.log('[STUB] checkAnswer()', transcript, '— comparer + scorer (membres 3 & 4)');
+  // Exemple d'intégration : showSaul(points > 0);
 }
 
 /* =========================================================================
