@@ -460,6 +460,124 @@
     margin-bottom: 4px;
   }
 
+  /* ----- Overlay règles ----- */
+  #rulesOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: rgba(10,5,20,0.82);
+    align-items: center;
+    justify-content: center;
+    animation: fadeUp .3s ease both;
+  }
+  #rulesOverlay.active { display: flex; }
+  .rules-card {
+    background: linear-gradient(160deg, rgba(42,26,69,0.97), rgba(26,15,46,0.97));
+    border: 1px solid rgba(255,194,60,0.25);
+    border-radius: var(--radius);
+    padding: 40px 44px;
+    max-width: 520px;
+    width: 90%;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.6);
+  }
+  .rules-card h2 { font-family: var(--font-display); font-size: 28px; margin-bottom: 20px; }
+  .rules-list { list-style: none; display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+  .rules-list li {
+    display: flex; align-items: flex-start; gap: 14px;
+    font-size: 15px; line-height: 1.5; color: #cbbfe0;
+  }
+  .rules-list li .badge {
+    flex: none;
+    font-family: var(--font-display);
+    font-size: 13px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--gold), var(--orange));
+    color: var(--deep);
+    white-space: nowrap;
+  }
+  .rules-list li .badge-step {
+    flex: none;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,194,60,0.5);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--gold);
+    white-space: nowrap;
+  }
+  .rules-divider {
+    font-size: 12px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: #6a5f7a;
+    margin: 4px 0 2px;
+  }
+  .btn-rules {
+    position: fixed;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* ----- Écran inter-manche ----- */
+  .result-track {
+    text-align: center;
+    padding: 20px 0 18px;
+    border-bottom: 1px solid rgba(255,194,60,0.15);
+    margin-bottom: 20px;
+  }
+  .result-track-title {
+    font-family: var(--font-display);
+    font-size: clamp(20px, 5vw, 34px);
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .result-track-artist { font-size: 16px; color: #cbbfe0; }
+  .result-scorer {
+    text-align: center;
+    font-size: 17px;
+    color: #cbbfe0;
+    min-height: 64px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px; margin-bottom: 22px;
+  }
+  .result-scorer .pts {
+    font-family: var(--font-display);
+    font-size: 48px; line-height: 1;
+    color: var(--gold);
+  }
+  .result-next-bar {
+    height: 4px; border-radius: 999px;
+    background: rgba(255,194,60,0.15);
+    overflow: hidden; margin-bottom: 20px;
+  }
+  .result-next-bar > span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--orange));
+    width: 100%;
+  }
+  @keyframes shrink { from { width: 100%; } to { width: 0%; } }
+  .result-next-bar.running > span { animation: shrink 4s linear forwards; }
+
+  /* ----- Confettis fin de partie ----- */
+  .confetti-wrap {
+    position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden;
+  }
+  .confetto {
+    position: absolute;
+    top: -16px;
+    width: 10px; height: 14px;
+    border-radius: 2px;
+    opacity: 0;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    0%   { opacity: 1; transform: translateY(0) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
+  }
+
   /* ----- Barre de debug ----- */
   #debugBar {
     position: fixed;
@@ -516,6 +634,7 @@
         <div class="btn-row">
           <button class="btn btn-primary" onclick="go('config')">▶ Jouer</button>
           <button class="btn btn-secondary" onclick="go('settings')">⚙ Paramètres</button>
+          <button class="btn btn-ghost" onclick="toggleRules()">? Règles</button>
         </div>
       </div>
     </section>
@@ -640,7 +759,8 @@
              - playAudioClip()     : jouer un extrait → ajouter/retirer .spinning sur #vinyl
              - onPlayerBuzz()      : mettre à jour #speakerName + lancer le timer dans #timer
              - checkAnswer()       : attribuer les points → appeler bumpScore(playerIndex)
-             - Quand timer < 3s    : ajouter .urgent sur #timer -->
+             - Quand timer < 3s    : ajouter .urgent sur #timer
+             - Durée de réponse    : 10 secondes -->
         <div class="buzz-zone">
           <div class="timer-ring" id="timer">–</div>
           <div class="speaker-name" id="speakerName">En attente d'une main levée…</div>
@@ -652,7 +772,25 @@
       </div>
     </section>
 
-    <!-- ===================== ÉCRAN 6 : FIN DE PARTIE ===================== -->
+    <!-- ===================== ÉCRAN 6 : RÉSULTAT DE MANCHE ===================== -->
+    <section class="screen" id="screen-result">
+      <div class="card">
+        <h2 class="screen-title" style="margin-bottom:16px">
+          Manche <span id="resultRound">1</span> / <span id="resultTotal">5</span>
+        </h2>
+        <div class="result-track">
+          <div class="result-track-title" id="resultTitle">—</div>
+          <div class="result-track-artist" id="resultArtist">—</div>
+        </div>
+        <div class="result-scorer" id="resultScorer"></div>
+        <div class="result-next-bar" id="resultBar"><span></span></div>
+        <div class="footer-nav">
+          <button class="btn btn-primary" style="width:100%" onclick="nextRound()">Suivant →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ÉCRAN 7 : FIN DE PARTIE ===================== -->
     <section class="screen" id="screen-end">
       <div class="card">
         <h2 class="screen-title">Résultats</h2>
@@ -676,6 +814,45 @@
   <button style="background:#ffc23c;color:#1a0f2e" onclick="playerRecognized()">✋ Main levée (recog)</button>
   <button style="background:#534ab7;color:#fff" onclick="endGame()">🏁 Fin de partie</button>
   <button style="background:#d4537e;color:#fff" onclick="bumpScore(0)">✨ +pts joueur 1</button>
+  <button style="background:#ff6b1a;color:#fff" onclick="onPlayerBuzz(0)">✋ Buzz joueur 1</button>
+  <button style="background:#7be0c0;color:#1a0f2e" onclick="checkAnswer('billie jean michael jackson')">🎤 Réponse test</button>
+</div>
+
+<!-- Audio du jeu -->
+<audio id="gameAudio" preload="auto"></audio>
+
+<!-- Confettis fin de partie -->
+<div class="confetti-wrap" id="confettiWrap"></div>
+
+<!-- Overlay règles -->
+<div id="rulesOverlay">
+  <div class="rules-card">
+    <h2 class="screen-title">Comment jouer ?</h2>
+    <ul class="rules-list">
+      <li>
+        <span class="badge-step">1</span>
+        <span>Écoute l'extrait musical joué par le jeu.</span>
+      </li>
+      <li>
+        <span class="badge-step">2</span>
+        <span>Lève la main devant la caméra pour prendre la parole.</span>
+      </li>
+      <li>
+        <span class="badge-step">3</span>
+        <span>Tu as <strong style="color:var(--gold)">10 secondes</strong> pour dire le titre ou l'artiste au micro.</span>
+      </li>
+      <p class="rules-divider">Scoring</p>
+      <li>
+        <span class="badge" style="background:linear-gradient(90deg,#7be0c0,#534ab7)">3 pts</span>
+        <span>Titre seul <em>ou</em> artiste seul trouvé.</span>
+      </li>
+      <li>
+        <span class="badge" style="background:linear-gradient(90deg,var(--gold),var(--magenta))">5 pts</span>
+        <span>Titre <strong>et</strong> artiste trouvés — le jackpot !</span>
+      </li>
+    </ul>
+    <button class="btn btn-primary" style="width:100%" onclick="toggleRules()">C'est compris !</button>
+  </div>
 </div>
 
 <!-- Overlay Saul Goodman — référence pop culture -->
@@ -707,12 +884,17 @@ const TRACKS = [
    Toutes les briques lisent/écrivent dans cet objet partagé.
    ========================================================================= */
 const GAME = {
-  screen: 'menu',
-  players: [],          // ex: [{name:'Léa', score:0}, {name:'Tom', score:0}]
-  recogIndex: 0,        // joueur en cours de reconnaissance caméra
-  round: 1,
-  totalRounds: 5,       // défini dans l'écran config, lu par le membre 4
-  menuMusicOn: true,
+  screen:       'menu',
+  players:      [],
+  recogIndex:   0,
+  round:        1,
+  totalRounds:  5,
+  menuMusicOn:  true,
+  currentTrack: null,   // {file, title, artist} en cours
+  usedTracks:   [],     // indices déjà joués
+  buzzerIndex:  -1,     // joueur qui a buzzé (-1 = personne)
+  gamePhase:    'idle', // 'listening' | 'answering' | 'result'
+  answerTimer:  null,
 };
 
 /* =========================================================================
@@ -725,7 +907,8 @@ function go(screen) {
   GAME.screen = screen;
   if (screen === 'config') renderPlayerInputs();
   if (screen === 'end') renderEndScreen();
-  document.getElementById('debugBar').style.display = screen === 'game' ? 'flex' : 'none';
+  document.getElementById('debugBar').style.display =
+    (screen === 'game' || screen === 'result') ? 'flex' : 'none';
 }
 
 /* =========================================================================
@@ -857,11 +1040,10 @@ function playerRecognized() {
    ========================================================================= */
 function startGame() {
   GAME.round = 1;
+  GAME.usedTracks = [];
   go('game');
   renderScoreboard();
-  document.getElementById('roundNum').textContent = GAME.round;
-  document.getElementById('roundTotal').textContent = GAME.totalRounds;
-  // >>> HOOK Membre 4 : lancer la 1re manche (playAudioClip, timer, etc.) <<<
+  startRound();
 }
 function renderScoreboard() {
   const sb = document.getElementById('scoreboard');
@@ -878,6 +1060,35 @@ function bumpScore(playerIndex) {
   void chip.offsetWidth; // force reflow pour relancer l'animation
   chip.classList.add('bump');
   chip.addEventListener('animationend', () => chip.classList.remove('bump'), { once: true });
+}
+
+/* =========================================================================
+   OVERLAY RÈGLES
+   ========================================================================= */
+function toggleRules() {
+  document.getElementById('rulesOverlay').classList.toggle('active');
+}
+
+/* =========================================================================
+   CONFETTIS — appelé automatiquement par renderEndScreen()
+   ========================================================================= */
+function launchConfetti() {
+  const wrap = document.getElementById('confettiWrap');
+  wrap.innerHTML = '';
+  const colors = ['#ffc23c','#ff6b1a','#d4537e','#534ab7','#7be0c0','#fff'];
+  for (let i = 0; i < 80; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetto';
+    el.style.cssText = `
+      left: ${Math.random() * 100}%;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      width: ${6 + Math.random() * 8}px;
+      height: ${10 + Math.random() * 8}px;
+      animation-duration: ${1.8 + Math.random() * 2}s;
+      animation-delay: ${Math.random() * 1.2}s;
+    `;
+    wrap.appendChild(el);
+  }
 }
 
 /* =========================================================================
@@ -911,20 +1122,170 @@ function showSaul(correct) {
   _saulTimer = setTimeout(() => overlay.classList.remove('active'), 2000);
 }
 
-/* ----- STUBS du cœur de jeu (Membre 4) ----- */
+/* =========================================================================
+   LOGIQUE DE JEU — boucle principale
+   ========================================================================= */
+
+let _clipTimeout  = null;
+let _resultTimer  = null;
+
+// --- Normalisation + Levenshtein (le membre 3 peut affiner) ---
+const norm = s => s.toLowerCase()
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m + 1}, (_, i) =>
+    Array.from({length: n + 1}, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function fuzzyMatch(input, target) {
+  const a = norm(input), b = norm(target);
+  if (!b.length) return false;
+  if (a.includes(b) || b.includes(a)) return true;
+  return levenshtein(a, b) <= Math.floor(b.length * 0.35);
+}
+
+// --- Démarrage d'une manche ---
+function startRound() {
+  document.getElementById('roundNum').textContent   = GAME.round;
+  document.getElementById('roundTotal').textContent = GAME.totalRounds;
+  document.getElementById('gameStatus').textContent = 'Écoute bien l\'extrait…';
+  document.getElementById('speakerName').textContent = 'En attente d\'une main levée…';
+  document.getElementById('timer').textContent      = '–';
+  document.getElementById('timer').classList.remove('urgent');
+
+  GAME.gamePhase   = 'listening';
+  GAME.buzzerIndex = -1;
+
+  playAudioClip();
+
+  // Si personne ne buzz après 20s → résultat automatique
+  clearTimeout(_clipTimeout);
+  _clipTimeout = setTimeout(() => {
+    if (GAME.gamePhase === 'listening')
+      showRoundResult(GAME.currentTrack, -1, 0);
+  }, 20000);
+}
+
+// --- Lecture d'un extrait ---
 function playAudioClip() {
-  console.log('[STUB] playAudioClip() — jouer un extrait du blind test (membre 4)');
+  const available = TRACKS.map((_, i) => i).filter(i => !GAME.usedTracks.includes(i));
+  if (!available.length) { endGame(); return; }
+
+  const idx = available[Math.floor(Math.random() * available.length)];
+  GAME.usedTracks.push(idx);
+  GAME.currentTrack = TRACKS[idx];
+
+  const audio = document.getElementById('gameAudio');
+  audio.src = GAME.currentTrack.file;
+  audio.play().catch(() => {});
+  document.getElementById('vinyl').classList.add('spinning');
 }
+
+// --- Joueur qui buzze (appelé par le membre 2) ---
 function onPlayerBuzz(playerIndex) {
-  // Appelé par le membre 2 quand un joueur lève la main pendant une manche.
-  console.log('[STUB] onPlayerBuzz()', playerIndex, '— donner la parole + timer 5s (membre 4)');
+  if (GAME.gamePhase !== 'listening') return;
+  GAME.gamePhase   = 'answering';
+  GAME.buzzerIndex = playerIndex;
+
+  clearTimeout(_clipTimeout);
+  document.getElementById('gameAudio').pause();
+  document.getElementById('vinyl').classList.remove('spinning');
+  document.getElementById('speakerName').textContent = GAME.players[playerIndex].name;
+  document.getElementById('gameStatus').textContent  = 'Réponds au micro !';
+
+  let timeLeft = 10;
+  document.getElementById('timer').textContent = timeLeft;
+  document.getElementById('timer').classList.remove('urgent');
+
+  clearInterval(GAME.answerTimer);
+  GAME.answerTimer = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timer').textContent = timeLeft;
+    if (timeLeft <= 3) document.getElementById('timer').classList.add('urgent');
+    if (timeLeft <= 0) {
+      clearInterval(GAME.answerTimer);
+      showRoundResult(GAME.currentTrack, playerIndex, 0);
+    }
+  }, 1000);
 }
+
+// --- Vérification de la réponse (appelé par le membre 3) ---
 function checkAnswer(transcript) {
-  // Appelé par le membre 3 avec le texte capté au micro.
-  // Doit renvoyer/attribuer : 3 pts (titre OU artiste), 5 pts (les deux).
-  // >>> Appeler showSaul(true/false) selon le résultat <<<
-  console.log('[STUB] checkAnswer()', transcript, '— comparer + scorer (membres 3 & 4)');
-  // Exemple d'intégration : showSaul(points > 0);
+  if (GAME.gamePhase !== 'answering') return;
+  clearInterval(GAME.answerTimer);
+  GAME.gamePhase = 'result';
+
+  const track       = GAME.currentTrack;
+  const matchTitle  = fuzzyMatch(transcript, track.title);
+  const matchArtist = fuzzyMatch(transcript, track.artist);
+
+  let points = 0;
+  if (matchTitle && matchArtist) points = 5;
+  else if (matchTitle || matchArtist) points = 3;
+
+  if (points > 0 && GAME.buzzerIndex >= 0) {
+    GAME.players[GAME.buzzerIndex].score += points;
+    bumpScore(GAME.buzzerIndex);
+  }
+  showSaul(points > 0);
+
+  setTimeout(() => showRoundResult(track, GAME.buzzerIndex, points), 2200);
+}
+
+// --- Affichage du résultat de manche ---
+function showRoundResult(track, scorerIndex, points) {
+  GAME.gamePhase = 'result';
+  clearInterval(GAME.answerTimer);
+  clearTimeout(_clipTimeout);
+  document.getElementById('gameAudio').pause();
+  document.getElementById('vinyl').classList.remove('spinning');
+
+  document.getElementById('resultRound').textContent  = GAME.round;
+  document.getElementById('resultTotal').textContent  = GAME.totalRounds;
+  document.getElementById('resultTitle').textContent  = track ? track.title  : '—';
+  document.getElementById('resultArtist').textContent = track ? track.artist : '—';
+
+  const sc = document.getElementById('resultScorer');
+  if (points > 0 && scorerIndex >= 0) {
+    sc.innerHTML = `${GAME.players[scorerIndex].name}<br><span class="pts">+${points} pts</span>`;
+  } else if (scorerIndex >= 0) {
+    sc.innerHTML = `${GAME.players[scorerIndex].name} n'a pas trouvé…`;
+  } else {
+    sc.innerHTML = 'Personne n\'a répondu…';
+  }
+
+  go('result');
+
+  // Barre de progression vers la manche suivante
+  const bar = document.getElementById('resultBar');
+  bar.classList.remove('running');
+  void bar.offsetWidth;
+  bar.classList.add('running');
+
+  clearTimeout(_resultTimer);
+  _resultTimer = setTimeout(nextRound, 4000);
+}
+
+// --- Passer à la manche suivante ---
+function nextRound() {
+  clearTimeout(_resultTimer);
+  GAME.round++;
+  if (GAME.round > GAME.totalRounds) {
+    endGame();
+  } else {
+    go('game');
+    renderScoreboard();
+    startRound();
+  }
 }
 
 /* =========================================================================
@@ -950,6 +1311,7 @@ function endGame() {
 }
 
 function renderEndScreen() {
+  launchConfetti();
   const sorted = [...GAME.players].sort((a, b) => b.score - a.score);
   const medals = ['🥇', '🥈', '🥉'];
 
