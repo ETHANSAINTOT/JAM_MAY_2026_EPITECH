@@ -586,6 +586,13 @@
           <span style="color:#b9add4;font-size:14px">joueurs (2 à 8)</span>
         </div>
 
+        <div class="counter">
+          <button onclick="changeRoundCount(-1)" aria-label="Moins">−</button>
+          <span class="count" id="roundCount">5</span>
+          <button onclick="changeRoundCount(1)" aria-label="Plus">+</button>
+          <span style="color:#b9add4;font-size:14px">manches (1 à 10)</span>
+        </div>
+
         <div class="players-list" id="playersList"><!-- généré par renderPlayerInputs() --></div>
         <p class="config-error" id="configError"></p>
 
@@ -618,7 +625,7 @@
     <section class="screen" id="screen-game">
       <div class="card">
         <div class="game-hud">
-          <h2 class="screen-title" style="margin:0">Manche <span id="roundNum">1</span></h2>
+          <h2 class="screen-title" style="margin:0">Manche <span id="roundNum">1</span> / <span id="roundTotal">5</span></h2>
           <div class="scoreboard" id="scoreboard"><!-- généré par renderScoreboard() --></div>
         </div>
 
@@ -704,6 +711,7 @@ const GAME = {
   players: [],          // ex: [{name:'Léa', score:0}, {name:'Tom', score:0}]
   recogIndex: 0,        // joueur en cours de reconnaissance caméra
   round: 1,
+  totalRounds: 5,       // défini dans l'écran config, lu par le membre 4
   menuMusicOn: true,
 };
 
@@ -762,6 +770,12 @@ function changePlayerCount(delta) {
   document.getElementById('playerCount').textContent = pendingCount;
   renderPlayerInputs();
 }
+
+let pendingRounds = 5;
+function changeRoundCount(delta) {
+  pendingRounds = Math.max(1, Math.min(10, pendingRounds + delta));
+  document.getElementById('roundCount').textContent = pendingRounds;
+}
 function renderPlayerInputs() {
   const list = document.getElementById('playersList');
   const existing = [...list.querySelectorAll('input')].map(i => i.value);
@@ -816,6 +830,7 @@ function startRecognition() {
 
   GAME.players = names.map(name => ({ name, score: 0 }));
   GAME.recogIndex = 0;
+  GAME.totalRounds = pendingRounds;
   go('recog');
   showRecogPlayer();
 
@@ -845,6 +860,7 @@ function startGame() {
   go('game');
   renderScoreboard();
   document.getElementById('roundNum').textContent = GAME.round;
+  document.getElementById('roundTotal').textContent = GAME.totalRounds;
   // >>> HOOK Membre 4 : lancer la 1re manche (playAudioClip, timer, etc.) <<<
 }
 function renderScoreboard() {
