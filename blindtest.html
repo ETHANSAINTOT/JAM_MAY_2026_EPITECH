@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blind Test — La JAM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  /* =========================================================================
+     SQUELETTE DU JEU DE BLIND TEST  —  Membre 1 (Interface & navigation)
+     -------------------------------------------------------------------------
+     Ce fichier gère :
+       - les 5 écrans (menu, paramètres, config joueurs, reconnaissance, jeu)
+       - la machine à états qui navigue entre eux
+       - les "points d'accroche" (hooks) où les autres membres branchent leur code
+     Cherchez les blocs  >>> HOOK ... <<<  pour savoir où intervenir.
+     ========================================================================= */
+
+  :root {
+    --orange:   #ff6b1a;
+    --gold:     #ffc23c;
+    --magenta:  #d4537e;
+    --violet:   #534ab7;
+    --deep:     #1a0f2e;     /* fond sombre nuit disco */
+    --deep-2:   #2a1a45;
+    --cream:    #fdf3e3;
+    --radius:   18px;
+    --font-display: 'Bungee', cursive;
+    --font-body:    'Outfit', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255,107,26,0.18), transparent 40%),
+      radial-gradient(circle at 80% 30%, rgba(83,74,183,0.30), transparent 45%),
+      radial-gradient(circle at 50% 90%, rgba(212,83,126,0.22), transparent 50%),
+      var(--deep);
+  }
+
+  /* Pastille animée façon boule à facettes en fond */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(rgba(255,194,60,0.06) 1px, transparent 1px);
+    background-size: 26px 26px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 24px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ----- Bandeau du haut ----- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px 28px;
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-size: clamp(22px, 4vw, 34px);
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, var(--gold), var(--orange), var(--magenta));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .audio-pill {
+    font-size: 13px;
+    color: var(--gold);
+    border: 1px solid rgba(255,194,60,0.4);
+    border-radius: 999px;
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: background .2s;
+  }
+  .audio-pill:hover { background: rgba(255,194,60,0.12); }
+  .audio-pill .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--gold);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .audio-pill.muted .dot { background: #6a5f7a; animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  /* ----- Conteneur des écrans ----- */
+  main { flex: 1; display: flex; align-items: center; justify-content: center; }
+
+  .screen { display: none; width: 100%; animation: fadeUp .45s ease both; }
+  .screen.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card {
+    background: linear-gradient(160deg, rgba(42,26,69,0.85), rgba(26,15,46,0.85));
+    border: 1px solid rgba(255,194,60,0.18);
+    border-radius: var(--radius);
+    padding: 36px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+  }
+
+  h1.title {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 6vw, 52px);
+    line-height: 1.05;
+    margin-bottom: 10px;
+  }
+  h1.title .accent {
+    background: linear-gradient(90deg, var(--orange), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .subtitle { color: #cbbfe0; font-size: 16px; margin-bottom: 30px; max-width: 520px; }
+
+  h2.screen-title {
+    font-family: var(--font-display);
+    font-size: clamp(22px, 4vw, 34px);
+    margin-bottom: 8px;
+  }
+  .hint { color: #b9add4; font-size: 14px; margin-bottom: 26px; }
+
+  /* ----- Boutons ----- */
+  .btn {
+    font-family: var(--font-body);
+    font-weight: 800;
+    font-size: 17px;
+    border: none;
+    border-radius: 999px;
+    padding: 15px 34px;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .2s, filter .2s;
+    color: var(--deep);
+  }
+  .btn:hover  { transform: translateY(-2px); }
+  .btn:active { transform: translateY(0); }
+  .btn-primary {
+    background: linear-gradient(90deg, var(--gold), var(--orange));
+    box-shadow: 0 10px 26px rgba(255,107,26,0.35);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--cream);
+    border: 1.5px solid rgba(253,243,227,0.4);
+  }
+  .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-ghost {
+    background: rgba(253,243,227,0.08);
+    color: var(--cream);
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 18px;
+  }
+  .btn-row { display: flex; gap: 14px; flex-wrap: wrap; }
+
+  /* ----- Écran paramètres : cartes test ----- */
+  .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 26px; }
+  @media (max-width: 620px){ .test-grid { grid-template-columns: 1fr; } }
+  .test-box {
+    border: 1px solid rgba(255,194,60,0.2);
+    border-radius: var(--radius);
+    padding: 22px;
+    background: rgba(0,0,0,0.18);
+  }
+  .test-box h3 { font-size: 18px; margin-bottom: 6px; display:flex; align-items:center; gap:8px; }
+  .test-box p  { font-size: 13px; color: #b9add4; margin-bottom: 16px; }
+  .status {
+    font-size: 13px; font-weight: 600;
+    padding: 6px 12px; border-radius: 999px; display: inline-block;
+    background: rgba(106,95,122,0.3); color: #cbbfe0;
+  }
+  .status.ok  { background: rgba(29,158,117,0.25); color: #7be0c0; }
+  .status.err { background: rgba(226,75,74,0.25);  color: #ff9b9b; }
+  /* zone d'aperçu caméra (le membre 2 y branche le flux vidéo) */
+  .cam-preview {
+    width: 100%; aspect-ratio: 4/3; border-radius: 12px;
+    background: rgba(0,0,0,0.4) repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.02) 10px, rgba(255,255,255,0.02) 20px);
+    margin: 14px 0; display: flex; align-items: center; justify-content: center;
+    color: #6a5f7a; font-size: 13px; overflow: hidden;
+  }
+  /* barre de niveau micro (le membre 3 anime sa largeur) */
+  .mic-meter { height: 12px; border-radius: 999px; background: rgba(0,0,0,0.4); overflow: hidden; margin: 14px 0; }
+  .mic-meter > span {
+    display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--gold), var(--orange), var(--magenta));
+    transition: width .08s linear;
+  }
+
+  /* ----- Écran config joueurs ----- */
+  .counter { display: flex; align-items: center; gap: 18px; margin-bottom: 24px; }
+  .counter button {
+    width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
+    font-size: 24px; font-weight: 800; color: var(--deep);
+    background: linear-gradient(90deg, var(--gold), var(--orange));
+  }
+  .counter .count { font-family: var(--font-display); font-size: 32px; min-width: 40px; text-align: center; }
+  .players-list { display: grid; gap: 12px; margin-bottom: 26px; }
+  .player-input {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(0,0,0,0.2); border: 1px solid rgba(255,194,60,0.18);
+    border-radius: 12px; padding: 10px 14px;
+  }
+  .player-input .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; color: var(--deep);
+    background: var(--gold);
+  }
+  .player-input input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--cream); font-size: 16px; font-family: var(--font-body);
+  }
+  .player-input input::placeholder { color: #6a5f7a; }
+
+  /* ----- Écran reconnaissance ----- */
+  .recog-stage { text-align: center; }
+  .recog-name {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 7vw, 56px);
+    margin: 10px 0 4px;
+    background: linear-gradient(90deg, var(--gold), var(--magenta));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .recog-instruction { color: #cbbfe0; font-size: 17px; margin-bottom: 20px; }
+  .recog-cam {
+    width: 100%; max-width: 480px; aspect-ratio: 4/3; margin: 0 auto 22px;
+    border-radius: var(--radius); border: 2px solid rgba(255,194,60,0.3);
+    background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;
+    color: #6a5f7a; font-size: 14px; overflow: hidden; position: relative;
+  }
+  .recog-progress { color: #b9add4; font-size: 14px; }
+
+  /* ----- Écran de jeu (placeholder pour le membre 4) ----- */
+  .game-hud { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 14px; }
+  .scoreboard { display: flex; gap: 10px; flex-wrap: wrap; }
+  .score-chip {
+    background: rgba(0,0,0,0.25); border: 1px solid rgba(255,194,60,0.2);
+    border-radius: 999px; padding: 8px 16px; font-size: 14px;
+  }
+  .score-chip b { color: var(--gold); }
+  .game-center { text-align: center; padding: 30px 0; }
+  .timer-ring {
+    font-family: var(--font-display); font-size: 52px;
+    color: var(--gold); margin: 16px 0;
+  }
+  .placeholder-note {
+    margin-top: 20px; font-size: 13px; color: #8a7da6;
+    border-top: 1px dashed rgba(255,194,60,0.2); padding-top: 16px;
+  }
+
+  .footer-nav { margin-top: 26px; display: flex; gap: 12px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">♪ BLIND TEST</div>
+    <!-- >>> HOOK AUDIO MENU (Membre 4) <<<
+         Brancher ici le toggle de "Let's Groove" (Earth, Wind & Fire) en fond des menus.
+         Le bouton appelle toggleMenuMusic(). -->
+    <div class="audio-pill" id="audioPill" onclick="toggleMenuMusic()">
+      <span class="dot"></span><span id="audioLabel">Musique : ON</span>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ===================== ÉCRAN 1 : MENU PRINCIPAL ===================== -->
+    <section class="screen active" id="screen-menu">
+      <div class="card">
+        <h1 class="title">Prêt à <span class="accent">groover</span> ?</h1>
+        <p class="subtitle">Lève la main, écoute l'extrait, et balance le titre au micro le plus vite possible. Le meilleur oreille gagne.</p>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="go('config')">▶ Jouer</button>
+          <button class="btn btn-secondary" onclick="go('settings')">⚙ Paramètres</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ÉCRAN 2 : PARAMÈTRES ===================== -->
+    <section class="screen" id="screen-settings">
+      <div class="card">
+        <h2 class="screen-title">Paramètres</h2>
+        <p class="hint">Vérifie que ton micro et ta caméra fonctionnent avant de lancer une partie.</p>
+
+        <div class="test-grid">
+          <!-- ----- Test caméra ----- -->
+          <div class="test-box">
+            <h3>🎥 Caméra</h3>
+            <p>On l'utilise pour détecter la main levée.</p>
+            <div class="cam-preview" id="settingsCamPreview">Aperçu caméra</div>
+            <!-- >>> HOOK CAMÉRA TEST (Membre 2) <<<
+                 testCamera() doit : demander l'accès webcam, afficher le flux dans
+                 #settingsCamPreview, puis appeler setStatus('camStatus', true/false). -->
+            <button class="btn btn-ghost" onclick="testCamera()">Tester la caméra</button>
+            <div style="margin-top:12px"><span class="status" id="camStatus">Non testé</span></div>
+          </div>
+
+          <!-- ----- Test micro ----- -->
+          <div class="test-box">
+            <h3>🎤 Micro</h3>
+            <p>On l'utilise pour capter ta réponse vocale.</p>
+            <div class="mic-meter"><span id="micLevel"></span></div>
+            <!-- >>> HOOK MICRO TEST (Membre 3) <<<
+                 testMic() doit : demander l'accès micro, animer la largeur de #micLevel
+                 selon le volume capté, puis appeler setStatus('micStatus', true/false). -->
+            <button class="btn btn-ghost" onclick="testMic()">Tester le micro</button>
+            <div style="margin-top:12px"><span class="status" id="micStatus">Non testé</span></div>
+          </div>
+        </div>
+
+        <div class="footer-nav">
+          <button class="btn btn-secondary" onclick="go('menu')">← Retour</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ÉCRAN 3 : CONFIG JOUEURS ===================== -->
+    <section class="screen" id="screen-config">
+      <div class="card">
+        <h2 class="screen-title">Qui joue ?</h2>
+        <p class="hint">Choisis le nombre de joueurs et leur pseudo.</p>
+
+        <div class="counter">
+          <button onclick="changePlayerCount(-1)" aria-label="Moins">−</button>
+          <span class="count" id="playerCount">2</span>
+          <button onclick="changePlayerCount(1)" aria-label="Plus">+</button>
+          <span style="color:#b9add4;font-size:14px">joueurs (2 à 8)</span>
+        </div>
+
+        <div class="players-list" id="playersList"><!-- généré par renderPlayerInputs() --></div>
+
+        <div class="footer-nav">
+          <button class="btn btn-secondary" onclick="go('menu')">← Retour</button>
+          <button class="btn btn-primary" onclick="startRecognition()">Suivant →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ÉCRAN 4 : RECONNAISSANCE ===================== -->
+    <section class="screen" id="screen-recog">
+      <div class="card recog-stage">
+        <p class="recog-instruction">Au tour de…</p>
+        <div class="recog-name" id="recogName">—</div>
+        <p class="recog-instruction">✋ Lève la main pour que le jeu te reconnaisse !</p>
+        <div class="recog-cam" id="recogCam">Flux caméra</div>
+        <p class="recog-progress" id="recogProgress">Joueur 1 / 2</p>
+        <!-- >>> HOOK RECONNAISSANCE (Membre 2) <<<
+             Quand la main levée est détectée pour le joueur courant, appeler
+             playerRecognized(). La fonction enchaîne sur le joueur suivant ou
+             démarre le jeu. Utilise GAME.players[GAME.recogIndex] pour le nom. -->
+        <div class="footer-nav" style="justify-content:center">
+          <button class="btn btn-ghost" onclick="playerRecognized()">✓ Simuler main levée (debug)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ÉCRAN 5 : JEU ===================== -->
+    <section class="screen" id="screen-game">
+      <div class="card">
+        <div class="game-hud">
+          <h2 class="screen-title" style="margin:0">Manche <span id="roundNum">1</span></h2>
+          <div class="scoreboard" id="scoreboard"><!-- généré par renderScoreboard() --></div>
+        </div>
+
+        <div class="game-center">
+          <p class="hint" id="gameStatus">Écoute bien l'extrait…</p>
+          <div class="timer-ring" id="timer">5</div>
+          <p class="recog-instruction" id="speakerName">En attente d'une main levée…</p>
+        </div>
+
+        <!-- >>> HOOK LOGIQUE DE JEU (Membre 4) <<<
+             C'est ici que se branche le cœur du jeu :
+               - playAudioClip()        : jouer un extrait (Web Audio / <audio>)
+               - main levée détectée    : appeler onPlayerBuzz(playerIndex) (du membre 2)
+               - réponse micro           : appeler checkAnswer(transcript) (du membre 3)
+               - scoring                 : 3 pts (titre OU artiste) / 5 pts (les deux)
+             Les fonctions ci-dessous sont des STUBS à remplacer. -->
+        <div class="placeholder-note">
+          Zone de jeu — à compléter par le membre 4 (audio, manches, timer, scores)
+          en branchant les modules caméra (membre 2) et micro (membre 3).
+        </div>
+
+        <div class="footer-nav">
+          <button class="btn btn-secondary" onclick="go('menu')">⏹ Quitter</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* =========================================================================
+   ÉTAT GLOBAL DU JEU
+   Toutes les briques lisent/écrivent dans cet objet partagé.
+   ========================================================================= */
+const GAME = {
+  screen: 'menu',
+  players: [],          // ex: [{name:'Léa', score:0}, {name:'Tom', score:0}]
+  recogIndex: 0,        // joueur en cours de reconnaissance caméra
+  round: 1,
+  menuMusicOn: true,
+};
+
+/* =========================================================================
+   NAVIGATION ENTRE ÉCRANS (machine à états)
+   go('menu' | 'settings' | 'config' | 'recog' | 'game')
+   ========================================================================= */
+function go(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  GAME.screen = screen;
+  if (screen === 'config') renderPlayerInputs();
+}
+
+/* =========================================================================
+   ÉCRAN PARAMÈTRES  —  helpers partagés
+   setStatus('camStatus'|'micStatus', true/false) met à jour le badge.
+   ========================================================================= */
+function setStatus(id, ok) {
+  const el = document.getElementById(id);
+  el.classList.remove('ok', 'err');
+  if (ok === true)  { el.classList.add('ok');  el.textContent = '✓ Fonctionne'; }
+  else if (ok === false) { el.classList.add('err'); el.textContent = '✗ Problème d\'accès'; }
+  else el.textContent = 'Non testé';
+}
+
+/* ----- STUBS à remplacer par les membres 2 et 3 ----- */
+function testCamera() {
+  // >>> Membre 2 : remplacer ce stub par l'accès réel à la webcam <<<
+  console.log('[STUB] testCamera() — à implémenter par le membre 2');
+  setStatus('camStatus', true);             // simulation
+  document.getElementById('settingsCamPreview').textContent = '(flux caméra ici)';
+}
+function testMic() {
+  // >>> Membre 3 : remplacer ce stub par l'accès réel au micro <<<
+  console.log('[STUB] testMic() — à implémenter par le membre 3');
+  setStatus('micStatus', true);             // simulation
+  // petite démo d'animation de la barre :
+  let v = 0, up = true;
+  const bar = document.getElementById('micLevel');
+  const demo = setInterval(() => {
+    v += up ? 12 : -12; if (v > 90) up = false; if (v < 10) up = true;
+    bar.style.width = v + '%';
+  }, 80);
+  setTimeout(() => { clearInterval(demo); bar.style.width = '0%'; }, 2500);
+}
+
+/* =========================================================================
+   ÉCRAN CONFIG JOUEURS
+   ========================================================================= */
+let pendingCount = 2;
+function changePlayerCount(delta) {
+  pendingCount = Math.max(2, Math.min(8, pendingCount + delta));
+  document.getElementById('playerCount').textContent = pendingCount;
+  renderPlayerInputs();
+}
+function renderPlayerInputs() {
+  const list = document.getElementById('playersList');
+  const existing = [...list.querySelectorAll('input')].map(i => i.value);
+  list.innerHTML = '';
+  for (let i = 0; i < pendingCount; i++) {
+    const row = document.createElement('div');
+    row.className = 'player-input';
+    row.innerHTML = `<span class="num">${i + 1}</span>
+      <input type="text" maxlength="16" placeholder="Pseudo du joueur ${i + 1}"
+             value="${existing[i] || ''}">`;
+    list.appendChild(row);
+  }
+}
+
+/* =========================================================================
+   PASSAGE CONFIG -> RECONNAISSANCE
+   On fige la liste des joueurs dans GAME, puis on démarre la reconnaissance.
+   ========================================================================= */
+function startRecognition() {
+  const inputs = [...document.querySelectorAll('#playersList input')];
+  GAME.players = inputs.map((inp, i) => ({
+    name: inp.value.trim() || ('Joueur ' + (i + 1)),
+    score: 0,
+  }));
+  GAME.recogIndex = 0;
+  go('recog');
+  showRecogPlayer();
+
+  // >>> HOOK Membre 2 : démarrer ici le flux caméra dans #recogCam
+  //     et écouter la main levée -> appeler playerRecognized() <<<
+}
+function showRecogPlayer() {
+  const p = GAME.players[GAME.recogIndex];
+  document.getElementById('recogName').textContent = p ? p.name : '—';
+  document.getElementById('recogProgress').textContent =
+    `Joueur ${GAME.recogIndex + 1} / ${GAME.players.length}`;
+}
+function playerRecognized() {
+  GAME.recogIndex++;
+  if (GAME.recogIndex >= GAME.players.length) {
+    startGame();                    // tout le monde est reconnu
+  } else {
+    showRecogPlayer();
+  }
+}
+
+/* =========================================================================
+   ÉCRAN DE JEU  —  squelette minimal (le membre 4 remplit le reste)
+   ========================================================================= */
+function startGame() {
+  GAME.round = 1;
+  go('game');
+  renderScoreboard();
+  document.getElementById('roundNum').textContent = GAME.round;
+  // >>> HOOK Membre 4 : lancer la 1re manche (playAudioClip, timer, etc.) <<<
+}
+function renderScoreboard() {
+  const sb = document.getElementById('scoreboard');
+  sb.innerHTML = GAME.players
+    .map(p => `<span class="score-chip">${p.name} <b>${p.score}</b></span>`)
+    .join('');
+}
+
+/* ----- STUBS du cœur de jeu (Membre 4) ----- */
+function playAudioClip() {
+  console.log('[STUB] playAudioClip() — jouer un extrait du blind test (membre 4)');
+}
+function onPlayerBuzz(playerIndex) {
+  // Appelé par le membre 2 quand un joueur lève la main pendant une manche.
+  console.log('[STUB] onPlayerBuzz()', playerIndex, '— donner la parole + timer 5s (membre 4)');
+}
+function checkAnswer(transcript) {
+  // Appelé par le membre 3 avec le texte capté au micro.
+  // Doit renvoyer/attribuer : 3 pts (titre OU artiste), 5 pts (les deux).
+  console.log('[STUB] checkAnswer()', transcript, '— comparer + scorer (membres 3 & 4)');
+}
+
+/* =========================================================================
+   AUDIO DES MENUS  —  Let's Groove (Membre 4 branche le vrai fichier)
+   ========================================================================= */
+function toggleMenuMusic() {
+  GAME.menuMusicOn = !GAME.menuMusicOn;
+  const pill = document.getElementById('audioPill');
+  pill.classList.toggle('muted', !GAME.menuMusicOn);
+  document.getElementById('audioLabel').textContent =
+    'Musique : ' + (GAME.menuMusicOn ? 'ON' : 'OFF');
+  // >>> HOOK Membre 4 : play()/pause() de l'élément <audio> de Let's Groove <<<
+  console.log('[STUB] toggleMenuMusic() ->', GAME.menuMusicOn);
+}
+
+/* ----- initialisation ----- */
+renderPlayerInputs();
+</script>
+</body>
+</html>
