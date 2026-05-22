@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Blind Test — La JAM</title>
+<title>Breaking Track</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -204,6 +204,23 @@
   }
   .btn-row { display: flex; gap: 14px; flex-wrap: wrap; }
 
+  /* ----- Menu principal : image de fond ----- */
+  #screen-menu .card {
+    background-image:
+      linear-gradient(rgba(26,15,46,0.42), rgba(26,15,46,0.42)),
+      url('assets/images/say-my-name.jpg');
+    background-size: cover;
+    background-position: center;
+    border-color: rgba(255,194,60,0.18);
+    padding: 80px 60px;
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  #screen-menu .subtitle { margin-top: 16px; margin-bottom: 0; }
+  #screen-menu .btn-row  { align-self: center; margin-bottom: 40px; }
+
   /* ----- Écran paramètres : cartes test ----- */
   .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 26px; }
   @media (max-width: 620px){ .test-grid { grid-template-columns: 1fr; } }
@@ -262,6 +279,13 @@
     color: var(--cream); font-size: 16px; font-family: var(--font-body);
   }
   .player-input input::placeholder { color: #6a5f7a; }
+  .player-input.error { border-color: rgba(226,75,74,0.6); }
+  .config-error {
+    font-size: 13px; font-weight: 600; color: #ff9b9b;
+    background: rgba(226,75,74,0.12); border-radius: 10px;
+    padding: 10px 16px; margin-bottom: 16px; display: none;
+  }
+  .config-error.visible { display: block; }
 
   /* ----- Écran reconnaissance ----- */
   .recog-stage { text-align: center; }
@@ -287,19 +311,93 @@
   .score-chip {
     background: rgba(0,0,0,0.25); border: 1px solid rgba(255,194,60,0.2);
     border-radius: 999px; padding: 8px 16px; font-size: 14px;
+    transition: transform .15s;
   }
   .score-chip b { color: var(--gold); }
-  .game-center { text-align: center; padding: 30px 0; }
-  .timer-ring {
-    font-family: var(--font-display); font-size: 52px;
-    color: var(--gold); margin: 16px 0;
+  @keyframes scoreBump {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.28); box-shadow: 0 0 18px rgba(255,194,60,0.55); }
+    100% { transform: scale(1); }
   }
-  .placeholder-note {
-    margin-top: 20px; font-size: 13px; color: #8a7da6;
-    border-top: 1px dashed rgba(255,194,60,0.2); padding-top: 16px;
+  .score-chip.bump { animation: scoreBump .5s ease both; }
+
+  /* Zone d'écoute (extrait en cours) */
+  .track-zone {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 14px; padding: 24px 0 10px;
+  }
+  .vinyl {
+    width: 110px; height: 110px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%,
+      #2a1a45 30%, #1a0f2e 31%, #1a0f2e 46%, rgba(255,194,60,0.35) 47%,
+      #1a0f2e 48%, #1a0f2e 100%);
+    border: 3px solid rgba(255,194,60,0.25);
+    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    transition: transform .3s;
+  }
+  .vinyl.spinning { animation: spin 2.5s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .game-status-label {
+    font-size: 15px; color: #b9add4; text-align: center;
+  }
+
+  /* Zone timer + speaker */
+  .buzz-zone {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; padding: 10px 0 20px;
+  }
+  .timer-ring {
+    font-family: var(--font-display); font-size: 64px;
+    color: var(--gold); line-height: 1;
+    text-shadow: 0 0 24px rgba(255,194,60,0.4);
+    transition: color .3s;
+  }
+  .timer-ring.urgent { color: #ff9b9b; text-shadow: 0 0 24px rgba(255,107,107,0.5); }
+  .speaker-name {
+    font-family: var(--font-display);
+    font-size: clamp(18px, 4vw, 28px);
+    background: linear-gradient(90deg, var(--gold), var(--magenta));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    min-height: 36px;
   }
 
   .footer-nav { margin-top: 26px; display: flex; gap: 12px; }
+
+  /* ----- Écran de fin de partie ----- */
+  .podium { display: flex; flex-direction: column; gap: 12px; margin: 28px 0; }
+  .podium-row {
+    display: flex; align-items: center; gap: 16px;
+    background: rgba(0,0,0,0.2); border: 1px solid rgba(255,194,60,0.15);
+    border-radius: 14px; padding: 14px 20px;
+    transition: transform .2s;
+  }
+  .podium-row.winner {
+    background: linear-gradient(90deg, rgba(255,194,60,0.18), rgba(255,107,26,0.12));
+    border-color: rgba(255,194,60,0.5);
+    transform: scale(1.03);
+  }
+  .podium-rank {
+    font-family: var(--font-display);
+    font-size: 22px;
+    min-width: 36px;
+    text-align: center;
+    color: #6a5f7a;
+  }
+  .podium-row.winner .podium-rank { color: var(--gold); }
+  .podium-name { flex: 1; font-size: 18px; font-weight: 600; }
+  .podium-score {
+    font-family: var(--font-display);
+    font-size: 24px;
+    color: var(--gold);
+  }
+  .winner-banner {
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: clamp(18px, 4vw, 28px);
+    color: var(--gold);
+    margin-bottom: 4px;
+  }
 
   /* ----- Barre de debug ----- */
   #debugBar {
@@ -336,7 +434,7 @@
 <div class="app">
 
   <header>
-    <div class="logo">♪ BLIND TEST</div>
+    <div class="logo">♪ BREAKING TRACK</div>
     <!-- >>> HOOK AUDIO MENU (Membre 4) <<<
          Brancher ici le toggle de "Let's Groove" (Earth, Wind & Fire) en fond des menus.
          Le bouton appelle toggleMenuMusic(). -->
@@ -350,8 +448,10 @@
     <!-- ===================== ÉCRAN 1 : MENU PRINCIPAL ===================== -->
     <section class="screen active" id="screen-menu">
       <div class="card">
-        <h1 class="title">Prêt à <span class="accent">groover</span> ?</h1>
-        <p class="subtitle">Lève la main, écoute l'extrait, et balance le titre au micro le plus vite possible. Le meilleur oreille gagne.</p>
+        <div>
+          <h1 class="title">Say my track… <span class="accent">and the artist.</span></h1>
+          <p class="subtitle">Écoute l'extrait, lève la main, et balance le titre ou l'artiste de la musique au micro le plus vite possible.</p>
+        </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="go('config')">▶ Jouer</button>
           <button class="btn btn-secondary" onclick="go('settings')">⚙ Paramètres</button>
@@ -411,6 +511,7 @@
         </div>
 
         <div class="players-list" id="playersList"><!-- généré par renderPlayerInputs() --></div>
+        <p class="config-error" id="configError"></p>
 
         <div class="footer-nav">
           <button class="btn btn-secondary" onclick="go('menu')">← Retour</button>
@@ -445,26 +546,38 @@
           <div class="scoreboard" id="scoreboard"><!-- généré par renderScoreboard() --></div>
         </div>
 
-        <div class="game-center">
-          <p class="hint" id="gameStatus">Écoute bien l'extrait…</p>
-          <div class="timer-ring" id="timer">5</div>
-          <p class="recog-instruction" id="speakerName">En attente d'une main levée…</p>
+        <!-- Zone extrait audio — le vinyle tourne pendant la lecture -->
+        <div class="track-zone">
+          <div class="vinyl" id="vinyl"></div>
+          <p class="game-status-label" id="gameStatus">Écoute bien l'extrait…</p>
         </div>
 
+        <!-- Zone timer + joueur qui répond -->
         <!-- >>> HOOK LOGIQUE DE JEU (Membre 4) <<<
-             C'est ici que se branche le cœur du jeu :
-               - playAudioClip()        : jouer un extrait (Web Audio / <audio>)
-               - main levée détectée    : appeler onPlayerBuzz(playerIndex) (du membre 2)
-               - réponse micro           : appeler checkAnswer(transcript) (du membre 3)
-               - scoring                 : 3 pts (titre OU artiste) / 5 pts (les deux)
-             Les fonctions ci-dessous sont des STUBS à remplacer. -->
-        <div class="placeholder-note">
-          Zone de jeu — à compléter par le membre 4 (audio, manches, timer, scores)
-          en branchant les modules caméra (membre 2) et micro (membre 3).
+             - playAudioClip()     : jouer un extrait → ajouter/retirer .spinning sur #vinyl
+             - onPlayerBuzz()      : mettre à jour #speakerName + lancer le timer dans #timer
+             - checkAnswer()       : attribuer les points → appeler bumpScore(playerIndex)
+             - Quand timer < 3s    : ajouter .urgent sur #timer -->
+        <div class="buzz-zone">
+          <div class="timer-ring" id="timer">–</div>
+          <div class="speaker-name" id="speakerName">En attente d'une main levée…</div>
         </div>
 
         <div class="footer-nav">
           <button class="btn btn-secondary" onclick="go('menu')">⏹ Quitter</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ÉCRAN 6 : FIN DE PARTIE ===================== -->
+    <section class="screen" id="screen-end">
+      <div class="card">
+        <h2 class="screen-title">Résultats</h2>
+        <p class="winner-banner" id="winnerBanner"></p>
+        <div class="podium" id="podium"></div>
+        <div class="footer-nav">
+          <button class="btn btn-secondary" onclick="go('menu')">← Menu</button>
+          <button class="btn btn-primary" onclick="replayGame()">↺ Rejouer</button>
         </div>
       </div>
     </section>
@@ -478,6 +591,8 @@
   <button style="background:#7be0c0;color:#1a0f2e" onclick="showSaul(true)">✅ Bonne réponse</button>
   <button style="background:#ff9b9b;color:#1a0f2e" onclick="showSaul(false)">❌ Mauvaise réponse</button>
   <button style="background:#ffc23c;color:#1a0f2e" onclick="playerRecognized()">✋ Main levée (recog)</button>
+  <button style="background:#534ab7;color:#fff" onclick="endGame()">🏁 Fin de partie</button>
+  <button style="background:#d4537e;color:#fff" onclick="bumpScore(0)">✨ +pts joueur 1</button>
 </div>
 
 <!-- Overlay Saul Goodman — référence pop culture -->
@@ -487,6 +602,23 @@
 </div>
 
 <script>
+/* =========================================================================
+   LISTE DES MUSIQUES DU BLIND TEST
+   Le membre 4 charge le fichier audio via TRACKS[i].file dans playAudioClip().
+   ========================================================================= */
+const TRACKS = [
+  { file: 'clips/01.mp3', title: 'Billie Jean',          artist: 'Michael Jackson' },
+  { file: 'clips/02.mp3', title: 'Bohemian Rhapsody',    artist: 'Queen' },
+  { file: 'clips/03.mp3', title: 'Smells Like Teen Spirit', artist: 'Nirvana' },
+  { file: 'clips/04.mp3', title: 'Hotel California',     artist: 'Eagles' },
+  { file: 'clips/05.mp3', title: 'Rolling in the Deep',  artist: 'Adele' },
+  { file: 'clips/06.mp3', title: 'Shape of You',         artist: 'Ed Sheeran' },
+  { file: 'clips/07.mp3', title: 'Superstition',         artist: 'Stevie Wonder' },
+  { file: 'clips/08.mp3', title: 'Get Lucky',            artist: 'Daft Punk' },
+  { file: 'clips/09.mp3', title: 'Blinding Lights',      artist: 'The Weeknd' },
+  { file: 'clips/10.mp3', title: "Don't Stop Me Now",    artist: 'Queen' },
+];
+
 /* =========================================================================
    ÉTAT GLOBAL DU JEU
    Toutes les briques lisent/écrivent dans cet objet partagé.
@@ -508,6 +640,7 @@ function go(screen) {
   document.getElementById('screen-' + screen).classList.add('active');
   GAME.screen = screen;
   if (screen === 'config') renderPlayerInputs();
+  if (screen === 'end') renderEndScreen();
   document.getElementById('debugBar').style.display = screen === 'game' ? 'flex' : 'none';
 }
 
@@ -573,10 +706,39 @@ function renderPlayerInputs() {
    ========================================================================= */
 function startRecognition() {
   const inputs = [...document.querySelectorAll('#playersList input')];
-  GAME.players = inputs.map((inp, i) => ({
-    name: inp.value.trim() || ('Joueur ' + (i + 1)),
-    score: 0,
-  }));
+  const errEl  = document.getElementById('configError');
+
+  // Réinitialiser les erreurs visuelles
+  inputs.forEach(inp => inp.closest('.player-input').classList.remove('error'));
+  errEl.classList.remove('visible');
+
+  // Détecter les noms vides
+  const empty = inputs.filter(inp => !inp.value.trim());
+  if (empty.length) {
+    empty.forEach(inp => inp.closest('.player-input').classList.add('error'));
+    errEl.textContent = 'Tous les joueurs doivent avoir un pseudo !';
+    errEl.classList.add('visible');
+    return;
+  }
+
+  // Détecter les doublons
+  const names = inputs.map(inp => inp.value.trim());
+  const seen = new Set();
+  const dupes = [];
+  names.forEach((n, i) => {
+    const key = n.toLowerCase();
+    if (seen.has(key)) dupes.push(i);
+    else seen.add(key);
+  });
+
+  if (dupes.length) {
+    dupes.forEach(i => inputs[i].closest('.player-input').classList.add('error'));
+    errEl.textContent = 'Deux joueurs ont le même pseudo !';
+    errEl.classList.add('visible');
+    return;
+  }
+
+  GAME.players = names.map(name => ({ name, score: 0 }));
   GAME.recogIndex = 0;
   go('recog');
   showRecogPlayer();
@@ -612,8 +774,18 @@ function startGame() {
 function renderScoreboard() {
   const sb = document.getElementById('scoreboard');
   sb.innerHTML = GAME.players
-    .map(p => `<span class="score-chip">${p.name} <b>${p.score}</b></span>`)
+    .map((p, i) => `<span class="score-chip" id="chip-${i}">${p.name} <b>${p.score}</b></span>`)
     .join('');
+}
+
+function bumpScore(playerIndex) {
+  renderScoreboard();
+  const chip = document.getElementById('chip-' + playerIndex);
+  if (!chip) return;
+  chip.classList.remove('bump');
+  void chip.offsetWidth; // force reflow pour relancer l'animation
+  chip.classList.add('bump');
+  chip.addEventListener('animationend', () => chip.classList.remove('bump'), { once: true });
 }
 
 /* =========================================================================
@@ -663,6 +835,41 @@ function toggleMenuMusic() {
     'Musique : ' + (GAME.menuMusicOn ? 'ON' : 'OFF');
   // >>> HOOK Membre 4 : play()/pause() de l'élément <audio> de Let's Groove <<<
   console.log('[STUB] toggleMenuMusic() ->', GAME.menuMusicOn);
+}
+
+/* =========================================================================
+   FIN DE PARTIE
+   Appeler endGame() depuis la boucle de jeu (membre 4) quand les manches
+   sont épuisées. renderEndScreen() construit le classement depuis GAME.players.
+   ========================================================================= */
+function endGame() {
+  go('end');
+}
+
+function renderEndScreen() {
+  const sorted = [...GAME.players].sort((a, b) => b.score - a.score);
+  const medals = ['🥇', '🥈', '🥉'];
+
+  document.getElementById('winnerBanner').textContent =
+    sorted[0].score > 0
+      ? `${medals[0]} ${sorted[0].name} remporte la partie !`
+      : 'Personne n\'a marqué de point…';
+
+  document.getElementById('podium').innerHTML = sorted.map((p, i) => `
+    <div class="podium-row ${i === 0 ? 'winner' : ''}">
+      <span class="podium-rank">${medals[i] || i + 1}</span>
+      <span class="podium-name">${p.name}</span>
+      <span class="podium-score">${p.score} pts</span>
+    </div>
+  `).join('');
+}
+
+function replayGame() {
+  GAME.players.forEach(p => p.score = 0);
+  GAME.recogIndex = 0;
+  GAME.round = 1;
+  go('recog');
+  showRecogPlayer();
 }
 
 /* ----- initialisation ----- */
