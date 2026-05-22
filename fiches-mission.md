@@ -1,55 +1,57 @@
-# 🎵 Blind Test — Fiches de mission de l'équipe
+# 🎵 Breaking Track — Fiches de mission de l'équipe
 
 > Jeu web de blind test musical. Base de code : un seul fichier `blindtest.html`.
-> Thème de la JAM : la musique. Contraintes : référence pop culture · *Let's Groove* (Earth, Wind & Fire) en musique de menu · input micro **et** caméra.
+> Thème de la JAM : la musique. Contraintes : référence pop culture (✅ Saul Goodman / Breaking Bad) · *Let's Groove* en musique de menu · input micro **et** caméra.
 
 ---
 
 ## 🧩 Comment on travaille ensemble
 
-Tout le jeu tourne autour d'un objet partagé `GAME` (dans la balise `<script>`). C'est notre **point de rendez-vous** : chaque module y lit et y écrit, plutôt que de s'appeler directement. Ça évite les conflits quand on bosse en parallèle.
+Tout le jeu tourne autour d'un objet partagé `GAME`. C'est notre **point de rendez-vous** : chaque module y lit et y écrit.
 
 ```js
 const GAME = {
-  screen: 'menu',     // écran courant
-  players: [],        // [{ name: 'Léa', score: 0 }, ...]
-  recogIndex: 0,      // joueur en cours de reconnaissance caméra
-  round: 1,           // manche en cours
-  menuMusicOn: true,  // état de la musique de menu
+  screen:      'menu',  // écran courant
+  players:     [],      // [{ name: 'Léa', score: 0 }, ...]
+  recogIndex:  0,       // joueur en cours de reconnaissance caméra
+  round:       1,       // manche en cours
+  totalRounds: 5,       // défini dans la config joueurs
+  menuMusicOn: true,    // état de la musique de menu
 };
 ```
 
-Chacun remplace des fonctions « **stub** » (= bouchons qui simulent pour l'instant). Elles sont **déjà câblées** aux boutons : pas besoin de toucher au HTML, juste remplir la fonction. Cherchez les commentaires `>>> HOOK ... <<<` dans le code, ils nomment le responsable et l'action attendue.
+**Navigation :** `go('menu' | 'settings' | 'config' | 'recog' | 'game' | 'end')`
 
-**⚠️ Rappels valables pour tout le monde :**
+Il y a **6 écrans** : menu, paramètres, config joueurs, reconnaissance, jeu, fin de partie.
+
+Cherchez les commentaires `>>> HOOK ... <<<` dans le code pour savoir où intervenir.
+
+**⚠️ Rappels pour tout le monde :**
 - Micro et caméra ne marchent que sur **Chrome ou Edge**.
-- La page doit tourner en `https://` ou `localhost` (sinon le navigateur bloque l'accès micro/caméra). → Utilisez l'extension **Live Server** de VS Code.
-- On teste tôt et souvent, chacun peut valider son module **sans attendre les autres** grâce aux stubs.
+- La page doit tourner en `localhost` → utilisez **Live Server** de VS Code (clic droit sur `blindtest.html` → *Open with Live Server*).
+- Ne pas ouvrir en `file://`, ça bloque le micro, la caméra et les requêtes réseau.
 
 ---
 
-## 👤 Membre 1 — Interface & navigation *(le squelette — déjà fait)*
+## 👤 Membre 1 — Interface & navigation ✅ *FAIT*
 
-**Rôle :** garant de la structure HTML/CSS, de la machine à états et de l'apparence générale. Tu as posé les fondations ; ton job en cours de route est d'aider les autres à brancher leur code et de garder l'UI cohérente.
+Tout le squelette est livré et fonctionnel. Résumé de ce qui est en place :
 
-**Ce qui est déjà livré :**
-- Les 5 écrans (menu, paramètres, config joueurs, reconnaissance, jeu).
-- La navigation `go('menu' | 'settings' | 'config' | 'recog' | 'game')`.
-- La saisie du nombre de joueurs et des pseudos.
-- Le thème rétro-disco.
-
-**Ce qu'il te reste à surveiller :**
-- Intégrer la **référence pop culture** une fois choisie par l'équipe (habillage d'une manche, écran de victoire, easter egg…).
-- Soigner les transitions et l'écran de fin de partie quand le membre 4 aura branché le scoring.
-- Régler les bugs d'affichage signalés par les autres.
+- 6 écrans avec navigation et animations
+- Thème visuel **Breaking Track** (Breaking Bad) : menu avec image de fond Walter White, overlay Saul Goodman sur bonne/mauvaise réponse (`showSaul(true/false)`), Hank dans les paramètres (`setHankMood(true/false)`)
+- Config joueurs : saisie des pseudos + validation (pseudos vides ou doublons bloqués) + compteur de manches (1 à 10)
+- Écran de jeu : vinyle animé (`#vinyl` + classe `.spinning`), timer (`#timer` + classe `.urgent`), scoreboard avec animation (`bumpScore(playerIndex)`)
+- Écran de fin : classement trié avec médailles 🥇🥈🥉 — déclenché par `endGame()`
+- Liste `TRACKS` de 10 musiques prête dans le code
+- Barre de debug visible sur l'écran de jeu
 
 ---
 
 ## 👤 Membre 2 — Caméra & détection de gestes
 
-**Rôle :** tout ce qui touche à la webcam et à la détection de la **main levée**, via **MediaPipe Hands** (Google).
+**Rôle :** webcam et détection de la **main levée** via **MediaPipe Hands**.
 
-**Librairie à charger** (dans le `<head>`) :
+**Librairies à ajouter dans le `<head>` :**
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -57,31 +59,33 @@ Chacun remplace des fonctions « **stub** » (= bouchons qui simulent pour l'ins
 
 **Fonctions à implémenter :**
 
-1. `testCamera()` — bouton « Tester la caméra » de l'écran Paramètres.
-   - Demander l'accès webcam (`navigator.mediaDevices.getUserMedia({ video: true })`).
-   - Afficher le flux dans la div `#settingsCamPreview`.
-   - Appeler `setStatus('camStatus', true)` si OK, `false` si refus/erreur.
+### 1. `testCamera()` — écran Paramètres
+- Demander l'accès webcam (`navigator.mediaDevices.getUserMedia({ video: true })`).
+- Afficher le flux dans `#settingsCamPreview`.
+- Appeler `setStatus('camStatus', true/false)`.
+- En temps réel, appeler **`setHankMood(true)`** quand une main est détectée, **`setHankMood(false)`** sinon.
 
-2. **Phase de reconnaissance** (écran `recog`) — déclenchée après la config joueurs.
-   - Afficher le flux caméra dans `#recogCam`.
-   - Quand une **main levée** est détectée pour le joueur courant (`GAME.players[GAME.recogIndex]`), appeler `playerRecognized()`. Le squelette enchaîne tout seul sur le joueur suivant ou démarre le jeu.
+### 2. Phase de reconnaissance (écran `recog`)
+- Afficher le flux caméra dans `#recogCam`.
+- Quand une main levée est détectée pour `GAME.players[GAME.recogIndex]`, appeler **`playerRecognized()`**. Le jeu enchaîne automatiquement.
 
-3. **Pendant les manches** — détecter la main levée d'un joueur pour lui donner la parole.
-   - Appeler `onPlayerBuzz(playerIndex)` (fonction gérée par le membre 4).
+### 3. Pendant les manches (écran `game`)
+- Détecter la main levée d'un joueur et appeler **`onPlayerBuzz(playerIndex)`** (implémenté par le membre 4).
 
-**Astuce détection « main levée » :** MediaPipe donne les coordonnées du poignet (`landmark[0]`) et du bout du majeur (`landmark[12]`). Une main est « levée » si le poignet est haut dans l'image (petit `y`) ou si les doigts pointent vers le haut. Commence simple : un seuil sur la position verticale du poignet suffit pour un premier jet.
+**Astuce détection :** `landmark[0].y < 0.4` sur le poignet suffit pour un premier jet.
 
 **Pièges :**
-- Le flux vidéo doit être miroir (effet selfie) pour que ce soit naturel : `transform: scaleX(-1)` en CSS.
-- Prévoir un petit délai anti-rebond pour ne pas détecter 10 fois la même main levée.
+- Flux vidéo en miroir : `transform: scaleX(-1)` sur l'élément vidéo.
+- Anti-rebond : délai de ~1s entre deux détections.
 
 ---
 
 ## 👤 Membre 3 — Micro & reconnaissance vocale
 
-**Rôle :** capter la réponse du joueur au micro et la transformer en texte, avec une **comparaison tolérante** au titre/artiste attendu.
+**Rôle :** capter la réponse du joueur et appeler `checkAnswer(transcript)`.
 
-**Techno :** la **Web Speech API** (intégrée à Chrome/Edge, rien à installer).
+**Techno :** Web Speech API (intégrée à Chrome/Edge, rien à installer).
+
 ```js
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SR();
@@ -91,74 +95,193 @@ recognition.interimResults = false;
 
 **Fonctions à implémenter :**
 
-1. `testMic()` — bouton « Tester le micro » de l'écran Paramètres.
-   - Demander l'accès micro (`getUserMedia({ audio: true })`).
-   - Animer la largeur de la barre `#micLevel` selon le volume capté (via Web Audio `AnalyserNode`).
-   - Appeler `setStatus('micStatus', true/false)`.
+### 1. `testMic()` — écran Paramètres
+- Demander l'accès micro (`getUserMedia({ audio: true })`).
+- Animer la largeur de `#micLevel` selon le volume (via `AnalyserNode`).
+- Appeler `setStatus('micStatus', true/false)`.
 
-2. **Écoute pendant une manche** — quand un joueur a la parole (timer de 5 s lancé par le membre 4) :
-   - Démarrer l'écoute, récupérer le texte transcrit.
-   - Appeler `checkAnswer(transcript)` (le membre 4 fait le scoring derrière).
+### 2. Écoute pendant une manche
+- Quand `onPlayerBuzz()` est appelé par le membre 2, le membre 4 lance un timer de **10 secondes**.
+- Pendant ce temps, démarrer l'écoute et appeler **`checkAnswer(transcript)`** avec le texte transcrit.
+- `checkAnswer` est géré par le membre 4 côté scoring — tu n'as qu'à lui passer le texte.
 
-3. **Fonction de comparaison tolérante** — la pièce maîtresse. Elle doit dire si le texte capté correspond au **titre**, à l'**artiste**, aux **deux**, ou à rien.
-   - **Normaliser** d'abord : minuscules, sans accents, sans ponctuation, espaces réduits.
-     ```js
-     const norm = s => s.toLowerCase()
-       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // retire accents
-       .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-     ```
-   - **Comparer en souple** avec une distance de Levenshtein (tolérer « bily jin » ≈ « billie jean »). Considère une correspondance valide si la distance est petite par rapport à la longueur du mot.
+**Comparaison tolérante** (à implémenter dans `checkAnswer` avec le membre 4) :
+```js
+const norm = s => s.toLowerCase()
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+```
+Utiliser une distance de Levenshtein pour tolérer les erreurs de transcription.
 
 **Pièges :**
-- La Web Speech API **ne marche pas sur Firefox/Safari** → tester sur Chrome.
-- Elle peut transcrire phonétiquement n'importe comment → d'où l'importance de la tolérance.
-- Un seul `recognition` à la fois : bien l'arrêter (`.stop()`) entre deux joueurs.
+- Web Speech API ne marche pas sur Firefox/Safari → Chrome uniquement.
+- Un seul `recognition` à la fois : appeler `.stop()` avant d'en relancer un.
+- Ne démarrer l'écoute **qu'après** que le membre 4 ait donné la parole au joueur.
 
 ---
 
 ## 👤 Membre 4 — Logique de jeu, audio & scores *(chef d'orchestre)*
 
-**Rôle :** assembler les briques des autres et faire tourner la partie : musiques, manches, timer, scores, et la musique de menu.
+**Rôle :** faire tourner la partie. C'est le plus gros morceau — tout le reste dépend de toi.
 
-**Fonctions à implémenter :**
+### État global à enrichir
 
-1. `playAudioClip()` — jouer un extrait du blind test (balise `<audio>` ou Web Audio API). Choisir une musique au hasard dans votre liste, jouer ~10-15 s.
-
-2. `onPlayerBuzz(playerIndex)` — appelé par le membre 2 quand un joueur lève la main :
-   - Mettre l'extrait en pause, afficher le nom du joueur (`#speakerName`).
-   - Lancer un **timer de 5 s** (mettre à jour `#timer`).
-   - Activer l'écoute micro (le membre 3 appellera `checkAnswer`).
-
-3. `checkAnswer(transcript)` — recevoir le résultat de la comparaison du membre 3 et **scorer** :
-   - **3 points** si titre seul **OU** artiste seul.
-   - **5 points** si titre **ET** artiste.
-   - Mettre à jour `GAME.players[i].score` puis appeler `renderScoreboard()`.
-
-4. `toggleMenuMusic()` — brancher *Let's Groove* d'Earth, Wind & Fire :
-   ```html
-   <audio id="menuMusic" src="lets-groove.mp3" loop></audio>
-   ```
-   - `play()` / `pause()` selon `GAME.menuMusicOn`.
-   - ⚠️ Les navigateurs bloquent l'autoplay : la musique ne peut démarrer **qu'après un clic** de l'utilisateur (ex. le bouton « Jouer »).
-
-5. **Boucle de manche** — enchaîner : nouvel extrait → attente d'une main levée → réponse → score → manche suivante, jusqu'à la fin (nombre de manches à définir, ex. 10).
-
-**La liste des musiques** (à décider en équipe) : un tableau d'objets, ex.
+Ajoute ces champs dans l'objet `GAME` :
 ```js
-const TRACKS = [
-  { file: 'clips/01.mp3', title: 'Billie Jean', artist: 'Michael Jackson' },
-  // ...
-];
+currentTrack: null,   // { title, artist, previewUrl } en cours
+usedTracks:   [],     // indices déjà joués pour ne pas répéter
+buzzerIndex:  -1,     // index du joueur qui a buzzé
+gamePhase:    'idle', // 'listening' | 'answering' | 'result'
+answerTimer:  null,   // setInterval du countdown
 ```
+
+### 1. `playAudioClip()` — jouer un extrait
+
+On utilise l'**API Deezer** pour récupérer des previews MP3 de 30s automatiquement — pas de fichiers à télécharger. Son API a des restrictions CORS, on passe par `corsproxy.io` pour la requête :
+```js
+const q = encodeURIComponent(`${track.title} ${track.artist}`);
+const res = await fetch(`https://corsproxy.io/?https://api.deezer.com/search?q=${q}&limit=1`);
+const data = await res.json();
+track.previewUrl = data.data[0].preview; // URL MP3 directe
+```
+- ⚠️ L'audio doit être lancé **dans un handler de clic** (pas après un `await`) sinon Chrome bloque l'autoplay. Montre un bouton "C'est parti !" après le chargement des URLs.
+- ⚠️ **iTunes ne fonctionne pas** : leur API retourne un format `.plus.aac.p.m4a` non supporté par Chrome.
+
+```js
+function playAudioClip() {
+  const available = TRACKS.map((_, i) => i).filter(i => !GAME.usedTracks.includes(i));
+  if (!available.length) { endGame(); return; }
+  const idx = available[Math.floor(Math.random() * available.length)];
+  GAME.usedTracks.push(idx);
+  GAME.currentTrack = TRACKS[idx];
+
+  const audio = document.getElementById('gameAudio');
+  audio.src = GAME.currentTrack.previewUrl;
+  audio.play().catch(() => {});
+  document.getElementById('vinyl').classList.add('spinning');
+}
+```
+
+### 2. `onPlayerBuzz(playerIndex)` — joueur qui prend la parole
+
+Appelé par le membre 2 quand une main est levée pendant une manche.
+
+```js
+function onPlayerBuzz(playerIndex) {
+  if (GAME.gamePhase !== 'listening') return;
+  GAME.gamePhase   = 'answering';
+  GAME.buzzerIndex = playerIndex;
+
+  document.getElementById('gameAudio').pause();
+  document.getElementById('vinyl').classList.remove('spinning');
+  document.getElementById('speakerName').textContent = GAME.players[playerIndex].name;
+  document.getElementById('gameStatus').textContent  = 'Réponds au micro !';
+
+  let timeLeft = 10;
+  document.getElementById('timer').textContent = timeLeft;
+  document.getElementById('timer').classList.remove('urgent');
+
+  clearInterval(GAME.answerTimer);
+  GAME.answerTimer = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timer').textContent = timeLeft;
+    if (timeLeft <= 3) document.getElementById('timer').classList.add('urgent');
+    if (timeLeft <= 0) {
+      clearInterval(GAME.answerTimer);
+      nextRound(); // ou afficher un résultat "temps écoulé"
+    }
+  }, 1000);
+}
+```
+
+### 3. `checkAnswer(transcript)` — vérifier la réponse
+
+Appelé par le membre 3 avec le texte capté au micro.
+
+- **3 points** si titre seul **OU** artiste seul.
+- **5 points** si titre **ET** artiste.
+- Appeler `bumpScore(GAME.buzzerIndex)` pour animer le score.
+- Appeler `showSaul(points > 0)` pour afficher Saul content ou déçu.
+
+```js
+function checkAnswer(transcript) {
+  clearInterval(GAME.answerTimer);
+  GAME.gamePhase = 'result';
+
+  const track       = GAME.currentTrack;
+  const matchTitle  = fuzzyMatch(transcript, track.title);   // à implémenter
+  const matchArtist = fuzzyMatch(transcript, track.artist);  // avec Levenshtein
+
+  let points = 0;
+  if (matchTitle && matchArtist) points = 5;
+  else if (matchTitle || matchArtist) points = 3;
+
+  if (points > 0) {
+    GAME.players[GAME.buzzerIndex].score += points;
+    bumpScore(GAME.buzzerIndex);
+  }
+  showSaul(points > 0);
+  setTimeout(nextRound, 2500);
+}
+```
+
+### 4. Boucle de manches
+
+```js
+function startRound() {
+  GAME.gamePhase   = 'listening';
+  GAME.buzzerIndex = -1;
+  document.getElementById('roundNum').textContent   = GAME.round;
+  document.getElementById('roundTotal').textContent = GAME.totalRounds;
+  document.getElementById('timer').textContent      = '–';
+  document.getElementById('timer').classList.remove('urgent');
+  document.getElementById('speakerName').textContent = 'En attente d\'une main levée…';
+  document.getElementById('gameStatus').textContent  = 'Écoute bien l\'extrait…';
+  playAudioClip();
+}
+
+function nextRound() {
+  GAME.round++;
+  if (GAME.round > GAME.totalRounds) endGame();
+  else startRound();
+}
+```
+
+Appeler `startRound()` dans `startGame()` (cherche le `>>> HOOK Membre 4 <<<`).
+
+### 5. `toggleMenuMusic()` — Let's Groove en fond de menu
+
+1. Ajouter dans le HTML (avant `</div>` de `.app`) :
+```html
+<audio id="menuMusic" src="assets/musics/lets-groove.mp3" loop></audio>
+```
+2. Déposer le fichier dans `assets/musics/`.
+3. Remplacer le stub `toggleMenuMusic()` :
+```js
+function toggleMenuMusic() {
+  GAME.menuMusicOn = !GAME.menuMusicOn;
+  const pill = document.getElementById('audioPill');
+  pill.classList.toggle('muted', !GAME.menuMusicOn);
+  document.getElementById('audioLabel').textContent =
+    'Musique : ' + (GAME.menuMusicOn ? 'ON' : 'OFF');
+  const music = document.getElementById('menuMusic');
+  if (GAME.menuMusicOn) music.play().catch(() => {});
+  else music.pause();
+}
+```
+4. Démarrer la musique dès le premier clic (bouton Jouer ou Paramètres), et la couper quand la partie commence.
 
 ---
 
 ## ✅ Checklist d'intégration finale
 
-- [ ] Le micro et la caméra passent au vert dans les Paramètres (Chrome).
-- [ ] La reconnaissance des joueurs fonctionne (main levée → joueur suivant).
-- [ ] Un extrait se lance, la main levée met en pause + lance le timer 5 s.
-- [ ] La réponse vocale est correctement scorée (3 / 5 pts).
-- [ ] *Let's Groove* tourne dans les menus (après le 1er clic).
-- [ ] La référence pop culture est intégrée quelque part de visible.
-- [ ] Test complet d'une partie de bout en bout sur la machine de démo.
+- [ ] Live Server lancé sur Chrome (pas `file://`)
+- [ ] Caméra et micro passent au vert dans les Paramètres
+- [ ] Hank réagit à la main levée dans les Paramètres
+- [ ] Reconnaissance des joueurs fonctionne (main levée → joueur suivant)
+- [ ] Un extrait se lance au démarrage de manche
+- [ ] Main levée pendant le jeu → pause audio + timer 10s
+- [ ] Réponse vocale → score 3 ou 5 pts + Saul s'affiche
+- [ ] *Let's Groove* tourne dans les menus
+- [ ] Écran de fin avec classement correct
+- [ ] Test complet d'une partie de bout en bout sur la machine de démo
