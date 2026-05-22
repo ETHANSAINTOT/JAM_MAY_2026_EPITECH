@@ -11,18 +11,19 @@ Tout le jeu tourne autour d'un objet partagé `GAME`. C'est notre **point de ren
 
 ```js
 const GAME = {
-  screen:      'menu',  // écran courant
-  players:     [],      // [{ name: 'Léa', score: 0 }, ...]
-  recogIndex:  0,       // joueur en cours de reconnaissance caméra
-  round:       1,       // manche en cours
-  totalRounds: 5,       // défini dans la config joueurs
-  menuMusicOn: true,    // état de la musique de menu
+  screen:        'menu',  // écran courant
+  players:       [],      // [{ name: 'Léa', score: 0 }, ...]
+  recogIndex:    0,       // joueur en cours de reconnaissance caméra
+  round:         1,       // manche en cours
+  totalRounds:   5,       // défini dans la config joueurs
+  menuMusicOn:   true,    // état de la musique de menu
+  selectedTheme: null,    // thème choisi — accès aux musiques via GAME.selectedTheme.tracks
 };
 ```
 
-**Navigation :** `go('menu' | 'settings' | 'config' | 'recog' | 'game' | 'end')`
+**Navigation :** `go('menu' | 'settings' | 'config' | 'theme' | 'recog' | 'game' | 'result' | 'end')`
 
-Il y a **6 écrans** : menu, paramètres, config joueurs, reconnaissance, jeu, fin de partie.
+Il y a **8 écrans** : menu, paramètres, config joueurs, choix du thème, reconnaissance, jeu, résultat de manche, fin de partie.
 
 Cherchez les commentaires `>>> HOOK ... <<<` dans le code pour savoir où intervenir.
 
@@ -37,13 +38,15 @@ Cherchez les commentaires `>>> HOOK ... <<<` dans le code pour savoir où interv
 
 Tout le squelette est livré et fonctionnel. Résumé de ce qui est en place :
 
-- 6 écrans avec navigation et animations
+- 8 écrans avec navigation et animations
 - Thème visuel **Breaking Track** (Breaking Bad) : menu avec image de fond Walter White, overlay Saul Goodman sur bonne/mauvaise réponse (`showSaul(true/false)`), Hank dans les paramètres (`setHankMood(true/false)`)
-- Config joueurs : saisie des pseudos + validation (pseudos vides ou doublons bloqués) + compteur de manches (1 à 10)
-- Écran de jeu : vinyle animé (`#vinyl` + classe `.spinning`), timer (`#timer` + classe `.urgent`), scoreboard avec animation (`bumpScore(playerIndex)`)
-- Écran de fin : classement trié avec médailles 🥇🥈🥉 — déclenché par `endGame()`
-- Liste `TRACKS` de 10 musiques prête dans le code
-- Barre de debug visible sur l'écran de jeu
+- Config joueurs : saisie des pseudos + validation + compteur de manches (1 à 10)
+- Écran de sélection de thème : 15 catégories avec 30+ musiques chacune
+- **Banque de musiques** `THEMES` : Populaires, 80/90/2000/2010/2020, Pop, Rock, Rap, Jazz, Électro, Jeux vidéo, Séries TV, Films, Animé/Manga, Dessins animés, Hardcore Mix
+- Écran de jeu : vinyle animé (`#vinyl` + `.spinning`), timer (`#timer` + `.urgent`), scoreboard (`bumpScore(i)`)
+- Écran résultat inter-manche : `showRoundResult(track, scorerIndex, points)` — à appeler depuis le membre 4
+- Écran de fin : classement, confettis — déclenché par `endGame()`
+- Overlay règles, barre de debug
 
 ---
 
@@ -67,12 +70,12 @@ Tout le squelette est livré et fonctionnel. Résumé de ce qui est en place :
 
 ### 2. Phase de reconnaissance (écran `recog`)
 - Afficher le flux caméra dans `#recogCam`.
-- Quand une main levée est détectée pour `GAME.players[GAME.recogIndex]`, appeler **`playerRecognized()`**. Le jeu enchaîne automatiquement.
+- Quand une main levée est détectée pour `GAME.players[GAME.recogIndex]`, appeler **`playerRecognized()`**.
 
 ### 3. Pendant les manches (écran `game`)
-- Détecter la main levée d'un joueur et appeler **`onPlayerBuzz(playerIndex)`** (implémenté par le membre 4).
+- Appeler **`onPlayerBuzz(playerIndex)`** quand un joueur lève la main (implémenté par le membre 4).
 
-**Astuce détection :** `landmark[0].y < 0.4` sur le poignet suffit pour un premier jet.
+**Astuce :** `landmark[0].y < 0.4` sur le poignet suffit pour un premier jet.
 
 **Pièges :**
 - Flux vidéo en miroir : `transform: scaleX(-1)` sur l'élément vidéo.
@@ -84,7 +87,7 @@ Tout le squelette est livré et fonctionnel. Résumé de ce qui est en place :
 
 **Rôle :** capter la réponse du joueur et appeler `checkAnswer(transcript)`.
 
-**Techno :** Web Speech API (intégrée à Chrome/Edge, rien à installer).
+**Techno :** Web Speech API (intégrée à Chrome/Edge).
 
 ```js
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -96,99 +99,84 @@ recognition.interimResults = false;
 **Fonctions à implémenter :**
 
 ### 1. `testMic()` — écran Paramètres
-- Demander l'accès micro (`getUserMedia({ audio: true })`).
-- Animer la largeur de `#micLevel` selon le volume (via `AnalyserNode`).
-- Appeler `setStatus('micStatus', true/false)`.
+- Accès micro, animer `#micLevel`, appeler `setStatus('micStatus', true/false)`.
 
 ### 2. Écoute pendant une manche
-- Quand `onPlayerBuzz()` est appelé par le membre 2, le membre 4 lance un timer de **10 secondes**.
-- Pendant ce temps, démarrer l'écoute et appeler **`checkAnswer(transcript)`** avec le texte transcrit.
-- `checkAnswer` est géré par le membre 4 côté scoring — tu n'as qu'à lui passer le texte.
-
-**Comparaison tolérante** (à implémenter dans `checkAnswer` avec le membre 4) :
-```js
-const norm = s => s.toLowerCase()
-  .normalize('NFD').replace(/[̀-ͯ]/g, '')
-  .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-```
-Utiliser une distance de Levenshtein pour tolérer les erreurs de transcription.
+- Démarrer l'écoute quand le membre 4 donne la parole (`onPlayerBuzz` est déclenché).
+- Appeler **`checkAnswer(transcript)`** avec le texte transcrit.
 
 **Pièges :**
-- Web Speech API ne marche pas sur Firefox/Safari → Chrome uniquement.
-- Un seul `recognition` à la fois : appeler `.stop()` avant d'en relancer un.
-- Ne démarrer l'écoute **qu'après** que le membre 4 ait donné la parole au joueur.
+- Web Speech API ne marche pas sur Firefox/Safari.
+- Un seul `recognition` à la fois : `.stop()` entre deux joueurs.
+- Ne démarrer l'écoute **qu'après** `onPlayerBuzz()`.
 
 ---
 
 ## 👤 Membre 4 — Logique de jeu, audio & scores *(chef d'orchestre)*
 
-**Rôle :** faire tourner la partie. C'est le plus gros morceau — tout le reste dépend de toi.
+**Rôle :** faire tourner la partie. La banque de musiques et les écrans sont prêts — il faut câbler l'audio et la boucle de jeu.
 
-### État global à enrichir
-
-Ajoute ces champs dans l'objet `GAME` :
-```js
-currentTrack: null,   // { title, artist, previewUrl } en cours
-usedTracks:   [],     // indices déjà joués pour ne pas répéter
-buzzerIndex:  -1,     // index du joueur qui a buzzé
-gamePhase:    'idle', // 'listening' | 'answering' | 'result'
-answerTimer:  null,   // setInterval du countdown
-```
+### Ce qui est fourni (ne pas réimplémenter)
+- `GAME.selectedTheme.tracks` — tableau des musiques du thème choisi, format `{ title, artist }`
+- `showRoundResult(track, scorerIndex, points)` — affiche l'écran résultat inter-manche
+- `bumpScore(playerIndex)` — anime le chip de score du joueur
+- `showSaul(correct)` — affiche Saul content ou déçu
+- `endGame()` — affiche le classement final
+- `renderScoreboard()` — met à jour les scores affichés
+- `#vinyl` — ajouter/retirer `.spinning` pour l'animation du vinyle
+- `#timer` — afficher le countdown, ajouter `.urgent` sous 3s
+- `#speakerName`, `#gameStatus` — textes de l'écran de jeu
 
 ### 1. `playAudioClip()` — jouer un extrait
 
-On utilise l'**API Deezer** pour récupérer des previews MP3 de 30s automatiquement — pas de fichiers à télécharger. Son API a des restrictions CORS, on passe par `corsproxy.io` pour la requête :
-```js
-const q = encodeURIComponent(`${track.title} ${track.artist}`);
-const res = await fetch(`https://corsproxy.io/?https://api.deezer.com/search?q=${q}&limit=1`);
-const data = await res.json();
-track.previewUrl = data.data[0].preview; // URL MP3 directe
-```
-- ⚠️ L'audio doit être lancé **dans un handler de clic** (pas après un `await`) sinon Chrome bloque l'autoplay. Montre un bouton "C'est parti !" après le chargement des URLs.
-- ⚠️ **iTunes ne fonctionne pas** : leur API retourne un format `.plus.aac.p.m4a` non supporté par Chrome.
+Utilise l'**API Deezer** via `corsproxy.io` pour récupérer un MP3 de 30s :
 
 ```js
-function playAudioClip() {
-  const available = TRACKS.map((_, i) => i).filter(i => !GAME.usedTracks.includes(i));
-  if (!available.length) { endGame(); return; }
-  const idx = available[Math.floor(Math.random() * available.length)];
-  GAME.usedTracks.push(idx);
-  GAME.currentTrack = TRACKS[idx];
+async function playAudioClip() {
+  const tracks = GAME.selectedTheme.tracks;
+  // Choisir un track non encore joué
+  const available = tracks.filter(t => !t.previewUrl || true); // adapter selon ta logique
+  const track = available[Math.floor(Math.random() * available.length)];
 
+  // Charger la preview si pas encore fait
+  if (!track.previewUrl) {
+    const q = encodeURIComponent(`${track.title} ${track.artist}`);
+    const res = await fetch(`https://corsproxy.io/?https://api.deezer.com/search?q=${q}&limit=1`);
+    const data = await res.json();
+    track.previewUrl = data.data?.[0]?.preview;
+  }
+
+  GAME.currentTrack = track;
   const audio = document.getElementById('gameAudio');
-  audio.src = GAME.currentTrack.previewUrl;
-  audio.play().catch(() => {});
+  audio.src = track.previewUrl;
+  audio.play();
   document.getElementById('vinyl').classList.add('spinning');
 }
 ```
 
-### 2. `onPlayerBuzz(playerIndex)` — joueur qui prend la parole
+⚠️ **Autoplay** : `audio.play()` doit être déclenché dans un handler de clic. Montre un bouton "C'est parti !" après le chargement, et lance `startRound()` au clic.
 
-Appelé par le membre 2 quand une main est levée pendant une manche.
+⚠️ **iTunes ne fonctionne pas** : leur API retourne un format `.plus.aac.p.m4a` non lu par Chrome.
+
+### 2. `onPlayerBuzz(playerIndex)` — joueur qui prend la parole
 
 ```js
 function onPlayerBuzz(playerIndex) {
-  if (GAME.gamePhase !== 'listening') return;
-  GAME.gamePhase   = 'answering';
-  GAME.buzzerIndex = playerIndex;
-
   document.getElementById('gameAudio').pause();
   document.getElementById('vinyl').classList.remove('spinning');
   document.getElementById('speakerName').textContent = GAME.players[playerIndex].name;
   document.getElementById('gameStatus').textContent  = 'Réponds au micro !';
+  GAME.buzzerIndex = playerIndex;
 
-  let timeLeft = 10;
-  document.getElementById('timer').textContent = timeLeft;
-  document.getElementById('timer').classList.remove('urgent');
-
-  clearInterval(GAME.answerTimer);
-  GAME.answerTimer = setInterval(() => {
-    timeLeft--;
-    document.getElementById('timer').textContent = timeLeft;
-    if (timeLeft <= 3) document.getElementById('timer').classList.add('urgent');
-    if (timeLeft <= 0) {
-      clearInterval(GAME.answerTimer);
-      nextRound(); // ou afficher un résultat "temps écoulé"
+  let t = 10;
+  document.getElementById('timer').textContent = t;
+  const interval = setInterval(() => {
+    t--;
+    document.getElementById('timer').textContent = t;
+    if (t <= 3) document.getElementById('timer').classList.add('urgent');
+    if (t <= 0) {
+      clearInterval(interval);
+      showRoundResult(GAME.currentTrack, playerIndex, 0);
     }
   }, 1000);
 }
@@ -196,21 +184,16 @@ function onPlayerBuzz(playerIndex) {
 
 ### 3. `checkAnswer(transcript)` — vérifier la réponse
 
-Appelé par le membre 3 avec le texte capté au micro.
-
-- **3 points** si titre seul **OU** artiste seul.
-- **5 points** si titre **ET** artiste.
-- Appeler `bumpScore(GAME.buzzerIndex)` pour animer le score.
-- Appeler `showSaul(points > 0)` pour afficher Saul content ou déçu.
-
 ```js
 function checkAnswer(transcript) {
-  clearInterval(GAME.answerTimer);
-  GAME.gamePhase = 'result';
-
-  const track       = GAME.currentTrack;
-  const matchTitle  = fuzzyMatch(transcript, track.title);   // à implémenter
-  const matchArtist = fuzzyMatch(transcript, track.artist);  // avec Levenshtein
+  const track = GAME.currentTrack;
+  // Normalisation
+  const norm = s => s.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  // Levenshtein ou includes simple
+  const matchTitle  = norm(transcript).includes(norm(track.title));
+  const matchArtist = norm(transcript).includes(norm(track.artist));
 
   let points = 0;
   if (matchTitle && matchArtist) points = 5;
@@ -221,42 +204,32 @@ function checkAnswer(transcript) {
     bumpScore(GAME.buzzerIndex);
   }
   showSaul(points > 0);
-  setTimeout(nextRound, 2500);
+  setTimeout(() => showRoundResult(track, GAME.buzzerIndex, points), 2200);
 }
 ```
 
-### 4. Boucle de manches
+### 4. `nextRound()` — passer à la manche suivante
 
 ```js
-function startRound() {
-  GAME.gamePhase   = 'listening';
-  GAME.buzzerIndex = -1;
-  document.getElementById('roundNum').textContent   = GAME.round;
-  document.getElementById('roundTotal').textContent = GAME.totalRounds;
-  document.getElementById('timer').textContent      = '–';
-  document.getElementById('timer').classList.remove('urgent');
-  document.getElementById('speakerName').textContent = 'En attente d\'une main levée…';
-  document.getElementById('gameStatus').textContent  = 'Écoute bien l\'extrait…';
-  playAudioClip();
-}
-
 function nextRound() {
   GAME.round++;
-  if (GAME.round > GAME.totalRounds) endGame();
-  else startRound();
+  if (GAME.round > GAME.totalRounds) {
+    endGame();
+  } else {
+    go('game');
+    renderScoreboard();
+    startRound(); // ta fonction qui lance l'extrait
+  }
 }
 ```
-
-Appeler `startRound()` dans `startGame()` (cherche le `>>> HOOK Membre 4 <<<`).
 
 ### 5. `toggleMenuMusic()` — Let's Groove en fond de menu
 
-1. Ajouter dans le HTML (avant `</div>` de `.app`) :
 ```html
+<!-- Ajouter dans le HTML avant </div>.app -->
 <audio id="menuMusic" src="assets/musics/lets-groove.mp3" loop></audio>
 ```
-2. Déposer le fichier dans `assets/musics/`.
-3. Remplacer le stub `toggleMenuMusic()` :
+
 ```js
 function toggleMenuMusic() {
   GAME.menuMusicOn = !GAME.menuMusicOn;
@@ -269,7 +242,6 @@ function toggleMenuMusic() {
   else music.pause();
 }
 ```
-4. Démarrer la musique dès le premier clic (bouton Jouer ou Paramètres), et la couper quand la partie commence.
 
 ---
 
@@ -279,9 +251,11 @@ function toggleMenuMusic() {
 - [ ] Caméra et micro passent au vert dans les Paramètres
 - [ ] Hank réagit à la main levée dans les Paramètres
 - [ ] Reconnaissance des joueurs fonctionne (main levée → joueur suivant)
-- [ ] Un extrait se lance au démarrage de manche
+- [ ] Écran de thème → sélection → partie se lance
+- [ ] Un extrait Deezer se lance au démarrage de manche
 - [ ] Main levée pendant le jeu → pause audio + timer 10s
 - [ ] Réponse vocale → score 3 ou 5 pts + Saul s'affiche
+- [ ] Écran résultat inter-manche s'affiche avec le bon titre/artiste
 - [ ] *Let's Groove* tourne dans les menus
-- [ ] Écran de fin avec classement correct
+- [ ] Écran de fin avec classement et confettis
 - [ ] Test complet d'une partie de bout en bout sur la machine de démo
