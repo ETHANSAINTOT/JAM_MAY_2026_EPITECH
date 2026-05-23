@@ -673,6 +673,31 @@ let _mpCamera     = null;   // instance Camera MediaPipe active
 let _buzzCooldown = false;  // anti-rebond buzz en jeu
 const _playerZones = [];    // coord x de la main de chaque joueur (phase recog)
 
+function _stopHandDetection() {
+  if (_mpCamera) { _mpCamera.stop(); _mpCamera = null; }
+  if (_mpHands)  { _mpHands.close(); _mpHands = null; }
+}
+
+// onHandResult(detected: bool, landmarks: array|null)
+// detected = true si poignet (landmark 0) dans le demi-haut de l'image (y < 0.5)
+function _initHandDetection(videoEl, onHandResult) {
+  _stopHandDetection();
+  _mpHands = new Hands({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+  });
+  _mpHands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
+  _mpHands.onResults(results => {
+    const landmarks = results.multiHandLandmarks?.[0] ?? null;
+    const detected  = !!landmarks && landmarks[0].y < 0.5;
+    onHandResult(detected, landmarks);
+  });
+  _mpCamera = new Camera(videoEl, {
+    onFrame: async () => { await _mpHands.send({ image: videoEl }); },
+    width: 640, height: 480
+  });
+  _mpCamera.start();
+}
+
 /* =========================================================================
    NAVIGATION ENTRE ÉCRANS (machine à états)
    go('menu' | 'settings' | 'config' | 'recog' | 'game')
@@ -707,6 +732,7 @@ async function testCamera() {
     const video = document.getElementById('settingsVideo');
     video.srcObject = _camStream;
     setStatus('camStatus', true);
+    _initHandDetection(video, (detected) => setHankMood(detected));
   } catch (err) {
     console.error('[camera] getUserMedia échec :', err);
     setStatus('camStatus', false);
