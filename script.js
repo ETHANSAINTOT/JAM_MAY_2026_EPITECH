@@ -1245,9 +1245,15 @@ function checkAnswer(transcript) {
 }
 
 function nextRound() {
-  // >>> Membre 4 : incrémenter GAME.round, aller à endGame() si terminé,
-  //     sinon recharger l'écran game et lancer startRound(). <<<
-  console.log('[STUB] nextRound()');
+  GAME.round++;
+  if (GAME.round > GAME.totalRounds) {
+    endGame();
+  } else {
+    go('game');
+    renderScoreboard();
+    document.getElementById('startRoundBtn').style.display = 'block';
+    document.getElementById('gameStatus').textContent = "Prêts ? Appuyez sur C'est parti !";
+  }
 }
 
 // showRoundResult est fourni par le membre 1 — à appeler depuis checkAnswer() ou onPlayerBuzz()
@@ -1293,7 +1299,8 @@ function toggleMenuMusic() {
    QUITTER UNE PARTIE EN COURS
    ========================================================================= */
 function quitGame() {
-  // >>> HOOK Membre 4 : annuler ici les timers en cours <<<
+  clearInterval(_buzzTimerInterval);
+  _buzzTimerInterval = null;
   document.getElementById('gameAudio').pause();
   document.getElementById('vinyl').classList.remove('spinning');
   go('menu');
