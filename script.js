@@ -673,6 +673,28 @@ let _mpCamera     = null;   // instance Camera MediaPipe active
 let _buzzCooldown = false;  // anti-rebond buzz en jeu
 const _playerZones = [];    // coord x de la main de chaque joueur (phase recog)
 
+async function _startRecogDetection() {
+  const video = document.getElementById('recogVideo');
+  if (!_camStream) {
+    try {
+      _camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    } catch (err) {
+      console.error('[camera] getUserMedia échec (recog) :', err);
+      return;
+    }
+  }
+  video.srcObject = _camStream;
+
+  let cooldown = false;
+  _initHandDetection(video, (detected, landmarks) => {
+    if (!detected || cooldown || GAME.screen !== 'recog') return;
+    cooldown = true;
+    _playerZones[GAME.recogIndex] = landmarks[0].x;
+    playerRecognized();
+    setTimeout(() => { cooldown = false; }, 1500);
+  });
+}
+
 function _stopHandDetection() {
   if (_mpCamera) { _mpCamera.stop(); _mpCamera = null; }
   if (_mpHands)  { _mpHands.close(); _mpHands = null; }
@@ -860,7 +882,7 @@ function selectTheme(themeId) {
   GAME.selectedTheme = THEMES.find(t => t.id === themeId);
   go('recog');
   showRecogPlayer();
-  // >>> HOOK Membre 2 : démarrer ici le flux caméra dans #recogCam <<<
+  _startRecogDetection();
 }
 
 /* =========================================================================
