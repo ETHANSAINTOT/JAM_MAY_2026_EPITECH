@@ -461,6 +461,7 @@ const THEMES = [
     tracks: [
       { title: 'Game of Thrones Main Theme', artist: 'Game of Thrones' },
       { title: 'Baby Blue', artist: 'Breaking Bad' },
+      { title: 'Uh!', artist: 'Breaking Bad' },
       { title: "I'll Be There for You", artist: 'Friends' },
       { title: 'Red Right Hand', artist: 'Peaky Blinders' },
       { title: 'My Life Is Going On', artist: 'La Casa de Papel' },
@@ -664,8 +665,68 @@ const GAME = {
   selectedTheme: null, // thème choisi dans l'écran de sélection — tracks disponibles via GAME.selectedTheme.tracks
 };
 
+const PLAYER_COLORS = ['#7be0c0','#ffc23c','#d4537e','#534ab7','#ff6b1a','#4a9eff','#a3e635','#f472b6'];
+
 let _playedTrackTitles = new Set();
-let _buzzTimerInterval = null;
+let _buzzTimerInterval  = null;
+let _roundTimerInterval = null;
+let _roundTimeLeft      = 30;
+let _recognition = null;
+let _recognitionActive = false;
+/* =========================================================================
+   COMPTE À REBOURS 3-2-1
+   ========================================================================= */
+function _countdown() {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('countdownOverlay');
+    const numEl   = document.getElementById('countdownNum');
+    let count = 3;
+    overlay.classList.add('active');
+    function tick() {
+      numEl.textContent = count;
+      numEl.classList.remove('pop');
+      void numEl.offsetWidth;
+      numEl.classList.add('pop');
+      count--;
+      if (count >= 0) { setTimeout(tick, 900); }
+      else { setTimeout(() => { overlay.classList.remove('active'); resolve(); }, 850); }
+    }
+    tick();
+  });
+}
+
+/* =========================================================================
+   TYPEWRITER
+   ========================================================================= */
+function _typewrite(el, text, speed = 45) {
+  return new Promise(resolve => {
+    el.textContent = '';
+    if (!text) { resolve(); return; }
+    let i = 0;
+    function tick() {
+      el.textContent += text[i++];
+      if (i < text.length) setTimeout(tick, speed);
+      else resolve();
+    }
+    tick();
+  });
+}
+
+/* =========================================================================
+   PLEIN ÉCRAN
+   ========================================================================= */
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+    document.getElementById('fullscreenBtn').textContent = '⛶';
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  const btn = document.getElementById('fullscreenBtn');
+  if (btn) btn.textContent = document.fullscreenElement ? '✕' : '⛶';
+});
 
 /* =========================================================================
    CAMÉRA & DÉTECTION — variables module (Membre 2)
@@ -781,7 +842,9 @@ function go(screen) {
   if (screen === 'config') renderPlayerInputs();
   if (screen === 'theme')  renderThemeGrid();
   if (screen === 'end')    renderEndScreen();
-  if (screen === 'menu') { const m = document.getElementById('menuMusic'); if (m && GAME.menuMusicOn) m.play().catch(() => {}); }
+  const _mm = document.getElementById('menuMusic');
+  if (screen === 'menu') { if (_mm && GAME.menuMusicOn) _mm.play().catch(() => {}); }
+  if (screen === 'recog' || screen === 'game') { if (_mm) _mm.pause(); }
   document.getElementById('debugBar').style.display =
     (screen === 'game' || screen === 'result') ? 'flex' : 'none';
 }
@@ -951,6 +1014,70 @@ function _stopMicTest() {
   }
 }
 
+function startListening() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { console.warn('[speech] Web Speech API non disponible'); return; }
+
+  stopListening();
+  _recognitionActive = true;
+
+  const rec = new SR();
+  _recognition = rec;
+  rec.lang = 'fr-FR';
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+
+  _stopMicTest();
+
+  const dbg = document.getElementById('speechDebug');
+  const dbgTxt = document.getElementById('speechDebugText');
+  if (dbg) dbg.style.display = 'block';
+
+  rec.onstart = () => {
+    if (dbgTxt) dbgTxt.textContent = 'écoute…';
+    console.log('[speech] onstart');
+  };
+
+  rec.onspeechstart = () => {
+    if (dbgTxt) dbgTxt.textContent = 'parole détectée…';
+    console.log('[speech] onspeechstart');
+  };
+
+  rec.onresult = (e) => {
+    const result = e.results[e.results.length - 1];
+    const transcript = result[0].transcript;
+    if (dbgTxt) dbgTxt.textContent = result.isFinal ? `✓ "${transcript}"` : transcript;
+    if (!result.isFinal) return;
+    // Ne traiter que si un joueur a buzzé et que le timer tourne
+    if (GAME.buzzerIndex === undefined || _buzzTimerInterval === null) return;
+    checkAnswer(transcript);
+  };
+
+  rec.onerror = (e) => {
+    if (e.error === 'aborted') return;
+    if (dbgTxt) dbgTxt.textContent = `⚠ ${e.error}`;
+    console.warn('[speech] onerror :', e.error);
+  };
+
+  rec.onend = () => {
+    console.log('[speech] onend, active=', _recognitionActive);
+    if (dbgTxt && _recognitionActive) dbgTxt.textContent = 'redémarre…';
+    if (_recognitionActive && _recognition === rec) {
+      setTimeout(() => { if (_recognitionActive) { try { rec.start(); } catch(_) {} } }, 100);
+    }
+  };
+
+  try { rec.start(); } catch (e) { console.error('[speech] start error:', e); }
+}
+
+function stopListening() {
+  _recognitionActive = false;
+  if (_recognition) { _recognition.abort(); _recognition = null; }
+  const dbg = document.getElementById('speechDebug');
+  if (dbg) dbg.style.display = 'none';
+}
+
 /* =========================================================================
    ÉCRAN CONFIG JOUEURS
    ========================================================================= */
@@ -1018,7 +1145,7 @@ function startRecognition() {
     return;
   }
 
-  GAME.players = names.map(name => ({ name, score: 0 }));
+  GAME.players = names.map((name, i) => ({ name, score: 0, color: PLAYER_COLORS[i % PLAYER_COLORS.length] }));
   GAME.recogIndex = 0;
   GAME.totalRounds = pendingRounds;
   go('theme');
@@ -1067,19 +1194,25 @@ function selectTheme(themeId) {
    ========================================================================= */
 function startGame() {
   GAME.round = 1;
+  GAME.history = [];
   go('game');
   renderScoreboard();
   document.getElementById('roundNum').textContent   = GAME.round;
   document.getElementById('roundTotal').textContent = GAME.totalRounds;
   _startGameDetection();
   _playedTrackTitles = new Set();
+  // Invalider les URLs Deezer cachées — elles expirent entre deux parties
+  THEMES.forEach(theme => theme.tracks.forEach(t => delete t.previewUrl));
   document.getElementById('startRoundBtn').style.display = 'block';
   document.getElementById('gameStatus').textContent = "Prêts ? Appuyez sur C'est parti !";
+  const gameVid = document.getElementById('gameVideo');
+  if (gameVid && _camStream) gameVid.srcObject = _camStream;
 }
 function renderScoreboard() {
   const sb = document.getElementById('scoreboard');
+  const tried = GAME.buzzedPlayers || new Set();
   sb.innerHTML = GAME.players
-    .map((p, i) => `<span class="score-chip" id="chip-${i}">${p.name} <b>${p.score}</b></span>`)
+    .map((p, i) => `<span class="score-chip${tried.has(i) ? ' tried' : ''}" id="chip-${i}" style="--pc:${p.color || 'rgba(255,194,60,0.25)'}">${p.name} <b>${p.score}</b></span>`)
     .join('');
 }
 
@@ -1158,54 +1291,166 @@ function showSaul(correct) {
    Ces fonctions sont des bouchons à remplacer. Voir fiches-mission.md.
    ========================================================================= */
 
-async function playAudioClip() {
-  const tracks = GAME.selectedTheme.tracks;
-  const available = tracks.filter(t => !_playedTrackTitles.has(t.title));
-  const pool = available.length > 0 ? available : tracks;
-  const track = pool[Math.floor(Math.random() * pool.length)];
-  _playedTrackTitles.add(track.title);
-
-  if (!track.previewUrl) {
-    try {
-      const q = encodeURIComponent(`${track.title} ${track.artist}`);
-      const res = await fetch(`https://corsproxy.io/?https://api.deezer.com/search?q=${q}&limit=1`);
-      const data = await res.json();
-      track.previewUrl = data.data?.[0]?.preview || null;
-    } catch (e) {
-      console.error('[deezer] fetch error', e);
-    }
-  }
-
-  GAME.currentTrack = track;
-  const audio = document.getElementById('gameAudio');
-  if (track.previewUrl) {
-    audio.src = track.previewUrl;
-    audio.play().catch(e => console.error('[audio] play error', e));
-    document.getElementById('vinyl').classList.add('spinning');
-    document.getElementById('gameStatus').textContent = "Écoute bien l'extrait…";
-  } else {
-    document.getElementById('gameStatus').textContent = '⚠ Pas de preview — levez la main quand même !';
+async function _fetchPreview(track) {
+  if (track.previewUrl !== undefined) return; // déjà tenté (null = pas dispo)
+  try {
+    const q = encodeURIComponent(`${track.title} ${track.artist}`);
+    const res = await fetch(`https://corsproxy.io/?https://api.deezer.com/search?q=${q}&limit=1`);
+    const data = await res.json();
+    track.previewUrl = data.data?.[0]?.preview ?? null;
+  } catch (e) {
+    track.previewUrl = null;
+    console.error('[deezer] fetch error', e);
   }
 }
 
-function startRound() {
+async function playAudioClip() {
+  const tracks = GAME.selectedTheme.tracks;
+  let track = null;
+
+  // Cherche un titre non encore joué avec preview dispo, jusqu'à 6 tentatives
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const available = tracks.filter(t => !_playedTrackTitles.has(t.title) && t.previewUrl !== null);
+    const pool = available.length > 0 ? available
+      : tracks.filter(t => !_playedTrackTitles.has(t.title));
+    const candidates = pool.length > 0 ? pool : tracks;
+    const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+
+    await _fetchPreview(candidate);
+
+    if (candidate.previewUrl) {
+      track = candidate;
+      break;
+    }
+    // previewUrl === null → pas de preview sur Deezer, on réessaie avec un autre
+  }
+
+  if (!track) {
+    document.getElementById('gameStatus').textContent = '⚠ Aucun extrait trouvé, manche suivante…';
+    setTimeout(() => showRoundResult(null, -1, 0), 2000);
+    return;
+  }
+
+  _playedTrackTitles.add(track.title);
+  GAME.currentTrack = track;
+  const audio = document.getElementById('gameAudio');
+  audio.src = track.previewUrl;
+  audio.play().catch(e => console.error('[audio] play error', e));
+  document.getElementById('vinyl').classList.add('spinning');
+  document.getElementById('gameStatus').textContent = "Écoute bien l'extrait…";
+}
+
+function _updateRoundTimerUI() {
+  const txt = document.getElementById('roundTimerText');
+  const bar = document.getElementById('roundTimerBar');
+  if (txt) txt.textContent = _roundTimeLeft + 's';
+  if (bar) {
+    bar.style.width = ((30 - _roundTimeLeft) / 30 * 100) + '%';
+    bar.style.background = _roundTimeLeft <= 8 ? 'var(--magenta)' : 'var(--teal)';
+  }
+}
+
+function _startRoundTimer() {
+  clearInterval(_roundTimerInterval);
+  _roundTimeLeft = 30;
+  const bar = document.getElementById('roundTimerBar');
+  if (bar) { bar.style.transition = 'none'; bar.style.width = '0%'; void bar.offsetWidth; bar.style.transition = ''; }
+  _updateRoundTimerUI();
+  _roundTimerInterval = setInterval(() => {
+    _roundTimeLeft--;
+    _updateRoundTimerUI();
+    if (_roundTimeLeft === 20 && GAME.currentTrack) {
+      const hint = document.getElementById('hintZone');
+      if (hint) {
+        const t = GAME.currentTrack;
+        hint.textContent = `Indice : « ${t.title[0].toUpperCase()}… » — ${t.artist[0].toUpperCase()}…`;
+        hint.classList.add('visible');
+      }
+    }
+    if (_roundTimeLeft <= 0) {
+      _stopRoundTimer();
+      if (_buzzTimerInterval === null) {
+        stopListening();
+        showRoundResult(GAME.currentTrack, -1, 0);
+      }
+    }
+  }, 1000);
+}
+
+function _pauseRoundTimer() {
+  clearInterval(_roundTimerInterval);
+  _roundTimerInterval = null;
+}
+
+function _resumeRoundTimer() {
+  if (_roundTimeLeft <= 0) return;
+  clearInterval(_roundTimerInterval);
+  _roundTimerInterval = setInterval(() => {
+    _roundTimeLeft--;
+    _updateRoundTimerUI();
+    if (_roundTimeLeft <= 0) {
+      _stopRoundTimer();
+      if (_buzzTimerInterval === null) {
+        stopListening();
+        showRoundResult(GAME.currentTrack, -1, 0);
+      }
+    }
+  }, 1000);
+}
+
+function _stopRoundTimer() {
+  clearInterval(_roundTimerInterval);
+  _roundTimerInterval = null;
+}
+
+async function startRound() {
   document.getElementById('startRoundBtn').style.display = 'none';
   document.getElementById('roundNum').textContent = GAME.round;
   document.getElementById('roundTotal').textContent = GAME.totalRounds;
   document.getElementById('timer').textContent = '–';
   document.getElementById('timer').classList.remove('urgent');
   document.getElementById('speakerName').textContent = "En attente d'une main levée…";
-  document.getElementById('gameStatus').textContent = 'Chargement…';
-  playAudioClip();
+  document.getElementById('gameStatus').textContent = 'Chargement de l\'extrait…';
+  GAME.buzzerIndex  = undefined;
+  GAME.currentTrack = null; // bloque les buzzers pendant le chargement
+  GAME.buzzedPlayers = new Set();
+  const hint = document.getElementById('hintZone');
+  if (hint) { hint.textContent = ''; hint.classList.remove('visible'); }
+  startListening(); // avant le premier await pour garder le contexte utilisateur
+  await playAudioClip();
+  if (!GAME.currentTrack) return; // playAudioClip a échoué, on abandonne
+  // Pause audio pour le countdown, puis relance
+  const _audio = document.getElementById('gameAudio');
+  _audio.pause(); _audio.currentTime = 0;
+  document.getElementById('vinyl').classList.remove('spinning');
+  document.getElementById('gameStatus').textContent = '';
+  await _countdown();
+  document.getElementById('gameStatus').textContent = "Écoute bien l'extrait…";
+  _audio.play().catch(() => {});
+  document.getElementById('vinyl').classList.add('spinning');
+  _startRoundTimer(); // démarre APRÈS que l'audio joue vraiment
 }
 
 function onPlayerBuzz(playerIndex) {
-  clearInterval(_buzzTimerInterval);
+  if (!GAME.currentTrack) return;          // extrait pas encore chargé
+  if (_buzzTimerInterval !== null) return; // timer déjà en cours, ignorer
+  if (!GAME.buzzedPlayers) GAME.buzzedPlayers = new Set();
+  if (GAME.buzzedPlayers.has(playerIndex)) return; // ce joueur a déjà essayé ce tour
+  GAME.buzzedPlayers.add(playerIndex);
+  _pauseRoundTimer();
+
   document.getElementById('gameAudio').pause();
   document.getElementById('vinyl').classList.remove('spinning');
-  document.getElementById('speakerName').textContent = GAME.players[playerIndex].name;
+  const speakerEl = document.getElementById('speakerName');
+  speakerEl.textContent = GAME.players[playerIndex].name;
+  const pc = GAME.players[playerIndex].color || 'var(--gold)';
+  speakerEl.style.backgroundImage = `linear-gradient(90deg, ${pc}, var(--magenta))`;
+  speakerEl.classList.remove('buzz-anim');
+  void speakerEl.offsetWidth;
+  speakerEl.classList.add('buzz-anim');
   document.getElementById('gameStatus').textContent = 'Réponds au micro !';
   GAME.buzzerIndex = playerIndex;
+  renderScoreboard();
 
   let t = 10;
   document.getElementById('timer').textContent = t;
@@ -1217,7 +1462,12 @@ function onPlayerBuzz(playerIndex) {
     if (t <= 0) {
       clearInterval(_buzzTimerInterval);
       _buzzTimerInterval = null;
-      showRoundResult(GAME.currentTrack, playerIndex, 0);
+      if (GAME.buzzedPlayers.size >= GAME.players.length) {
+        stopListening();
+        showRoundResult(GAME.currentTrack, -1, 0);
+      } else {
+        resumeAfterFailedBuzz();
+      }
     }
   }, 1000);
 }
@@ -1226,6 +1476,9 @@ function checkAnswer(transcript) {
   clearInterval(_buzzTimerInterval);
   _buzzTimerInterval = null;
   const track = GAME.currentTrack;
+  const scorerIndex = GAME.buzzerIndex;
+  GAME.buzzerIndex = undefined;
+
   const norm = s => s.toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -1237,11 +1490,32 @@ function checkAnswer(transcript) {
   else if (matchTitle || matchArtist) points = 3;
 
   if (points > 0) {
-    GAME.players[GAME.buzzerIndex].score += points;
-    bumpScore(GAME.buzzerIndex);
+    GAME.players[scorerIndex].score += points;
+    bumpScore(scorerIndex);
+    showSaul(true);
+    stopListening();
+    setTimeout(() => showRoundResult(track, scorerIndex, points), 2200);
+  } else {
+    showSaul(false);
+    if (GAME.buzzedPlayers.size >= GAME.players.length) {
+      stopListening();
+      setTimeout(() => showRoundResult(track, -1, 0), 2200);
+    } else {
+      setTimeout(() => resumeAfterFailedBuzz(), 2200);
+    }
   }
-  showSaul(points > 0);
-  setTimeout(() => showRoundResult(track, GAME.buzzerIndex, points), 2200);
+}
+
+function resumeAfterFailedBuzz() {
+  GAME.buzzerIndex = undefined;
+  document.getElementById('speakerName').textContent = "À qui le tour ?";
+  document.getElementById('gameStatus').textContent = "Quelqu'un d'autre peut essayer !";
+  document.getElementById('timer').textContent = '–';
+  document.getElementById('timer').classList.remove('urgent');
+  document.getElementById('gameAudio').play().catch(() => {});
+  document.getElementById('vinyl').classList.add('spinning');
+  renderScoreboard();
+  _resumeRoundTimer();
 }
 
 function nextRound() {
@@ -1249,19 +1523,30 @@ function nextRound() {
   if (GAME.round > GAME.totalRounds) {
     endGame();
   } else {
+    GAME.buzzedPlayers = new Set();
     go('game');
     renderScoreboard();
-    document.getElementById('startRoundBtn').style.display = 'block';
-    document.getElementById('gameStatus').textContent = "Prêts ? Appuyez sur C'est parti !";
+    startRound();
   }
 }
 
 // showRoundResult est fourni par le membre 1 — à appeler depuis checkAnswer() ou onPlayerBuzz()
 function showRoundResult(track, scorerIndex, points) {
+  _stopRoundTimer();
   document.getElementById('resultRound').textContent  = GAME.round;
   document.getElementById('resultTotal').textContent  = GAME.totalRounds;
-  document.getElementById('resultTitle').textContent  = track ? track.title  : '—';
-  document.getElementById('resultArtist').textContent = track ? track.artist : '—';
+  document.getElementById('resultTitle').textContent  = '';
+  document.getElementById('resultArtist').textContent = '';
+
+  // Historique
+  if (!GAME.history) GAME.history = [];
+  GAME.history.push({
+    title:       track ? track.title  : '—',
+    artist:      track ? track.artist : '—',
+    scorerName:  points > 0 && scorerIndex >= 0 ? GAME.players[scorerIndex].name  : null,
+    scorerColor: points > 0 && scorerIndex >= 0 ? GAME.players[scorerIndex].color : null,
+    points
+  });
 
   const sc = document.getElementById('resultScorer');
   if (points > 0 && scorerIndex >= 0) {
@@ -1269,16 +1554,52 @@ function showRoundResult(track, scorerIndex, points) {
   } else if (scorerIndex >= 0) {
     sc.innerHTML = `${GAME.players[scorerIndex].name} n'a pas trouvé…`;
   } else {
-    sc.innerHTML = 'Personne n\'a répondu…';
+    sc.innerHTML = 'Personne n\'a trouvé…';
   }
 
   go('result');
 
+  // Typewriter sur le titre et l'artiste après le fadeUp
+  if (track) {
+    setTimeout(async () => {
+      await _typewrite(document.getElementById('resultTitle'), track.title, 48);
+      await _typewrite(document.getElementById('resultArtist'), track.artist, 38);
+    }, 480);
+  } else {
+    document.getElementById('resultTitle').textContent  = '—';
+    document.getElementById('resultArtist').textContent = '—';
+  }
+
   const bar = document.getElementById('resultBar');
   bar.classList.remove('running');
   void bar.offsetWidth;
-  bar.classList.add('running');
-  // Le bouton "Suivant →" appelle nextRound() — pas d'auto-avance
+  setTimeout(() => bar.classList.add('running'), 500);
+
+  const btn = document.getElementById('nextRoundBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Chargement…'; }
+  _prefetchNextTrack();
+}
+
+async function _prefetchNextTrack() {
+  const btn = document.getElementById('nextRoundBtn');
+  const isLastRound = GAME.round >= GAME.totalRounds;
+
+  if (isLastRound) {
+    if (btn) { btn.disabled = false; btn.textContent = '🏁 Voir les résultats'; }
+    return;
+  }
+
+  if (!GAME.selectedTheme) { if (btn) { btn.disabled = false; btn.textContent = 'Prêt ?'; } return; }
+
+  // Cherche un titre non encore joué et pas encore fetchée → le pre-fetch
+  const tracks = GAME.selectedTheme.tracks;
+  const unfetched = tracks.filter(t => !_playedTrackTitles.has(t.title) && t.previewUrl === undefined);
+  if (unfetched.length > 0) {
+    const candidate = unfetched[Math.floor(Math.random() * unfetched.length)];
+    await _fetchPreview(candidate);
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Prêt ? →'; }
 }
 
 /* =========================================================================
@@ -1301,6 +1622,8 @@ function toggleMenuMusic() {
 function quitGame() {
   clearInterval(_buzzTimerInterval);
   _buzzTimerInterval = null;
+  _stopRoundTimer();
+  stopListening();
   document.getElementById('gameAudio').pause();
   document.getElementById('vinyl').classList.remove('spinning');
   go('menu');
@@ -1326,20 +1649,63 @@ function renderEndScreen() {
       : 'Personne n\'a marqué de point…';
 
   document.getElementById('podium').innerHTML = sorted.map((p, i) => `
-    <div class="podium-row ${i === 0 ? 'winner' : ''}">
+    <div class="podium-row ${i === 0 ? 'winner' : ''}" style="border-color:${p.color ? p.color + '55' : ''}">
       <span class="podium-rank">${medals[i] || i + 1}</span>
-      <span class="podium-name">${p.name}</span>
+      <span class="podium-name" style="color:${p.color || ''}">${p.name}</span>
       <span class="podium-score">${p.score} pts</span>
     </div>
   `).join('');
+
+  const histWrap = document.getElementById('historyWrap');
+  const histList = document.getElementById('historyList');
+  if (GAME.history && GAME.history.length && histWrap && histList) {
+    histList.innerHTML = GAME.history.map((h, i) => `
+      <div class="history-row">
+        <div class="history-track">
+          <span class="history-title">${i + 1}. ${h.title}</span>
+          <span class="history-artist">${h.artist}</span>
+        </div>
+        <div class="history-finder" style="color:${h.scorerColor || '#6a5f7a'}">
+          ${h.scorerName ? `${h.scorerName} +${h.points}pts` : 'Personne'}
+        </div>
+      </div>
+    `).join('');
+    histWrap.style.display = '';
+  }
 }
 
 function replayGame() {
   GAME.players.forEach(p => p.score = 0);
   GAME.recogIndex = 0;
   GAME.round = 1;
+  GAME.history = [];
   GAME.selectedTheme = null;
   go('theme');
+}
+
+/* ----- debug speech ----- */
+function debugSpeech() {
+  stopListening();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const dbgTxt = document.getElementById('speechDebugText');
+  const dbg = document.getElementById('speechDebug');
+  if (!SR) { alert('SpeechRecognition non disponible sur ce navigateur'); return; }
+  if (dbg) dbg.style.display = 'block';
+  const r = new SR();
+  r.lang = 'fr-FR';
+  r.continuous = false;
+  r.interimResults = true;
+  r.onstart   = () => { console.log('[dbg] onstart'); if (dbgTxt) dbgTxt.textContent = 'onstart — écoute…'; };
+  r.onspeechstart = () => { console.log('[dbg] onspeechstart'); if (dbgTxt) dbgTxt.textContent = 'parole détectée…'; };
+  r.onresult  = (e) => {
+    const t = e.results[0][0].transcript;
+    console.log('[dbg] onresult:', t, 'final:', e.results[0].isFinal);
+    if (dbgTxt) dbgTxt.textContent = (e.results[0].isFinal ? '✓ ' : '') + t;
+  };
+  r.onerror   = (e) => { console.warn('[dbg] onerror:', e.error); if (dbgTxt) dbgTxt.textContent = '⚠ ' + e.error; };
+  r.onend     = () => { console.log('[dbg] onend'); };
+  r.start();
+  console.log('[dbg] start() appelé');
 }
 
 /* ----- initialisation ----- */

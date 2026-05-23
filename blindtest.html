@@ -146,16 +146,23 @@
         <div class="track-zone">
           <div class="vinyl" id="vinyl"></div>
           <p class="game-status-label" id="gameStatus">Écoute bien l'extrait…</p>
+          <div class="round-timer-wrap">
+            <div class="round-timer-bar-bg"><div id="roundTimerBar" class="round-timer-bar-fill" style="width:0%"><div class="round-timer-dot"></div></div></div>
+            <span id="roundTimerText" class="round-timer-text">30s</span>
+          </div>
+          <p id="hintZone" class="hint-zone"></p>
         </div>
 
         <div class="buzz-zone">
           <div class="timer-ring" id="timer">–</div>
           <div class="speaker-name" id="speakerName">En attente d'une main levée…</div>
+          <video id="gameVideo" class="cam-video game-cam" autoplay playsinline muted></video>
         </div>
 
         <div class="footer-nav">
           <button class="btn btn-primary" id="startRoundBtn" onclick="startRound()" style="display:none;width:100%">▶ C'est parti !</button>
-          <button class="btn btn-secondary" onclick="quitGame()">⏹ Quitter</button>
+          <button class="btn btn-secondary" onclick="quitGame()">Quitter</button>
+          <button class="btn btn-ghost" id="fullscreenBtn" onclick="toggleFullscreen()" title="Plein écran">⛶</button>
         </div>
       </div>
     </section>
@@ -172,7 +179,7 @@
         <div class="result-scorer" id="resultScorer"></div>
         <div class="result-next-bar" id="resultBar"><span></span></div>
         <div class="footer-nav">
-          <button class="btn btn-primary" style="width:100%" onclick="nextRound()">Suivant →</button>
+          <button class="btn btn-primary" id="nextRoundBtn" style="width:100%" onclick="nextRound()" disabled>⏳ Chargement…</button>
         </div>
       </div>
     </section>
@@ -182,6 +189,10 @@
         <h2 class="screen-title">Résultats</h2>
         <p class="winner-banner" id="winnerBanner"></p>
         <div class="podium" id="podium"></div>
+        <div class="history-wrap" id="historyWrap" style="display:none">
+          <p class="history-label">Récap des manches</p>
+          <div id="historyList"></div>
+        </div>
         <div class="footer-nav">
           <button class="btn btn-secondary" onclick="quitGame()">← Menu</button>
           <button class="btn btn-primary" onclick="replayGame()">↺ Rejouer</button>
@@ -192,6 +203,8 @@
   </main>
 </div>
 
+<div id="speechDebug" style="display:none;position:fixed;bottom:56px;left:0;right:0;text-align:center;font-size:13px;color:#7be0c0;background:rgba(0,0,0,.6);padding:6px 12px;z-index:999;font-family:monospace">🎤 <span id="speechDebugText">…</span></div>
+
 <div id="debugBar" style="display:none">
   <span class="dbg-label">debug</span>
   <button style="background:#7be0c0;color:#1a0f2e" onclick="showSaul(true)">✅ Bonne réponse</button>
@@ -199,12 +212,17 @@
   <button style="background:#ffc23c;color:#1a0f2e" onclick="playerRecognized()">✋ Main levée (recog)</button>
   <button style="background:#534ab7;color:#fff" onclick="endGame()">🏁 Fin de partie</button>
   <button style="background:#d4537e;color:#fff" onclick="bumpScore(0)">✨ +pts joueur 1</button>
+  <button style="background:#1a8a5a;color:#fff" onclick="debugSpeech()">🎤 Test micro direct</button>
 </div>
 
 <audio id="menuMusic" src="assets/musics/lets-groove.mp3" loop></audio>
 <audio id="gameAudio" preload="auto"></audio>
 
 <div class="confetti-wrap" id="confettiWrap"></div>
+
+<div id="countdownOverlay">
+  <div id="countdownNum"></div>
+</div>
 
 <div id="rulesOverlay">
   <div class="rules-card">
