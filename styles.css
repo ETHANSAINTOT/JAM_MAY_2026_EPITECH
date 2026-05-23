@@ -194,6 +194,22 @@
   }
   .btn-row { display: flex; gap: 14px; flex-wrap: wrap; }
 
+  /* ----- GIFs menu ----- */
+  #screen-menu { position: relative; }
+  .menu-gif {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 560px;
+    width: auto;
+    object-fit: contain;
+    pointer-events: none;
+    filter: drop-shadow(0 0 30px rgba(255,194,60,0.2));
+  }
+  .menu-gif-left  { left:  calc(50% - 870px); }
+  .menu-gif-right { right: calc(50% - 870px); transform: translateY(-50%) scaleX(-1); }
+  @media (max-width: 1100px) { .menu-gif { display: none; } }
+
   /* ----- Menu principal : image de fond ----- */
   #screen-menu .card {
     background-image:
