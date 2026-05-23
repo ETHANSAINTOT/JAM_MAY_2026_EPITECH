@@ -1200,10 +1200,26 @@ function startRound() {
 }
 
 function onPlayerBuzz(playerIndex) {
-  // >>> Membre 4 : pausé l'audio, afficher le nom du joueur dans #speakerName,
-  //     lancer un countdown 10s dans #timer (ajouter .urgent sous 3s), puis
-  //     appeler showRoundResult() à la fin du timer. <<<
-  console.log('[STUB] onPlayerBuzz()', playerIndex);
+  clearInterval(_buzzTimerInterval);
+  document.getElementById('gameAudio').pause();
+  document.getElementById('vinyl').classList.remove('spinning');
+  document.getElementById('speakerName').textContent = GAME.players[playerIndex].name;
+  document.getElementById('gameStatus').textContent = 'Réponds au micro !';
+  GAME.buzzerIndex = playerIndex;
+
+  let t = 10;
+  document.getElementById('timer').textContent = t;
+  document.getElementById('timer').classList.remove('urgent');
+  _buzzTimerInterval = setInterval(() => {
+    t--;
+    document.getElementById('timer').textContent = t;
+    if (t <= 3) document.getElementById('timer').classList.add('urgent');
+    if (t <= 0) {
+      clearInterval(_buzzTimerInterval);
+      _buzzTimerInterval = null;
+      showRoundResult(GAME.currentTrack, playerIndex, 0);
+    }
+  }, 1000);
 }
 
 function checkAnswer(transcript) {
