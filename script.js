@@ -778,6 +778,7 @@ function go(screen) {
   if (screen === 'config') renderPlayerInputs();
   if (screen === 'theme')  renderThemeGrid();
   if (screen === 'end')    renderEndScreen();
+  if (screen === 'menu') { const m = document.getElementById('menuMusic'); if (m && GAME.menuMusicOn) m.play().catch(() => {}); }
   document.getElementById('debugBar').style.display =
     (screen === 'game' || screen === 'result') ? 'flex' : 'none';
 }
@@ -1216,8 +1217,9 @@ function toggleMenuMusic() {
   pill.classList.toggle('muted', !GAME.menuMusicOn);
   document.getElementById('audioLabel').textContent =
     'Musique : ' + (GAME.menuMusicOn ? 'ON' : 'OFF');
-  // >>> HOOK Membre 4 : play()/pause() de l'élément <audio> de Let's Groove <<<
-  console.log('[STUB] toggleMenuMusic() ->', GAME.menuMusicOn);
+  const music = document.getElementById('menuMusic');
+  if (GAME.menuMusicOn) music.play().catch(() => {});
+  else music.pause();
 }
 
 /* =========================================================================
