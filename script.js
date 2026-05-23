@@ -665,6 +665,15 @@ const GAME = {
 };
 
 /* =========================================================================
+   CAMÉRA & DÉTECTION — variables module (Membre 2)
+   ========================================================================= */
+let _camStream    = null;   // stream getUserMedia partagé entre les écrans
+let _mpHands      = null;   // instance MediaPipe Hands active
+let _mpCamera     = null;   // instance Camera MediaPipe active
+let _buzzCooldown = false;  // anti-rebond buzz en jeu
+const _playerZones = [];    // coord x de la main de chaque joueur (phase recog)
+
+/* =========================================================================
    NAVIGATION ENTRE ÉCRANS (machine à états)
    go('menu' | 'settings' | 'config' | 'recog' | 'game')
    ========================================================================= */
@@ -692,11 +701,16 @@ function setStatus(id, ok) {
 }
 
 /* ----- STUBS à remplacer par les membres 2 et 3 ----- */
-function testCamera() {
-  // >>> Membre 2 : remplacer ce stub par l'accès réel à la webcam <<<
-  console.log('[STUB] testCamera() — à implémenter par le membre 2');
-  setStatus('camStatus', true);             // simulation
-  document.getElementById('settingsCamPreview').textContent = '(flux caméra ici)';
+async function testCamera() {
+  try {
+    _camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const video = document.getElementById('settingsVideo');
+    video.srcObject = _camStream;
+    setStatus('camStatus', true);
+  } catch (err) {
+    console.error('[camera] getUserMedia échec :', err);
+    setStatus('camStatus', false);
+  }
 }
 function testMic() {
   // >>> Membre 3 : remplacer ce stub par l'accès réel au micro <<<
