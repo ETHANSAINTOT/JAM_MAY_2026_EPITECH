@@ -692,12 +692,39 @@ function setStatus(id, ok) {
 }
 
 /* ----- STUBS à remplacer par les membres 2 et 3 ----- */
-function testCamera() {
-  // >>> Membre 2 : remplacer ce stub par l'accès réel à la webcam <<<
-  console.log('[STUB] testCamera() — à implémenter par le membre 2');
-  setStatus('camStatus', true);             // simulation
-  document.getElementById('settingsCamPreview').textContent = '(flux caméra ici)';
+let cameraStream = null;
+
+async function testCamera() {
+  const preview = document.getElementById('settingsCamPreview');
+
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false
+    });
+
+    preview.innerHTML = '';
+
+    const video = document.createElement('video');
+    video.srcObject = cameraStream;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = true;
+
+    video.style.width = '100%';
+    video.style.height = '100%';
+    video.style.objectFit = 'cover';
+    video.style.borderRadius = '16px';
+
+    preview.appendChild(video);
+    setStatus('camStatus', true);
+  } catch (error) {
+    console.error('Erreur caméra:', error);
+    setStatus('camStatus', false);
+    preview.textContent = 'Caméra refusée ou indisponible';
+  }
 }
+
 function testMic() {
   // >>> Membre 3 : remplacer ce stub par l'accès réel au micro <<<
   console.log('[STUB] testMic() — à implémenter par le membre 3');
