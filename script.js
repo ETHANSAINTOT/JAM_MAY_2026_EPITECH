@@ -664,6 +664,9 @@ const GAME = {
   selectedTheme: null, // thème choisi dans l'écran de sélection — tracks disponibles via GAME.selectedTheme.tracks
 };
 
+let _playedTrackTitles = new Set();
+let _buzzTimerInterval = null;
+
 /* =========================================================================
    CAMÉRA & DÉTECTION — variables module (Membre 2)
    ========================================================================= */
@@ -1069,8 +1072,9 @@ function startGame() {
   document.getElementById('roundNum').textContent   = GAME.round;
   document.getElementById('roundTotal').textContent = GAME.totalRounds;
   _startGameDetection();
-  // >>> HOOK Membre 4 : lancer la 1re manche <<<
-  // Utilise GAME.selectedTheme.tracks pour la liste des musiques du thème choisi.
+  _playedTrackTitles = new Set();
+  document.getElementById('startRoundBtn').style.display = 'block';
+  document.getElementById('gameStatus').textContent = "Prêts ? Appuyez sur C'est parti !";
 }
 function renderScoreboard() {
   const sb = document.getElementById('scoreboard');
@@ -1154,11 +1158,45 @@ function showSaul(correct) {
    Ces fonctions sont des bouchons à remplacer. Voir fiches-mission.md.
    ========================================================================= */
 
-function playAudioClip() {
-  // >>> Membre 4 : charger les previews Deezer + jouer un extrait aléatoire <<<
-  // Utilise GAME.selectedTheme.tracks → chaque track a { title, artist, previewUrl }
-  // Ajouter .spinning sur #vinyl pendant la lecture.
-  console.log('[STUB] playAudioClip()');
+async function playAudioClip() {
+  const tracks = GAME.selectedTheme.tracks;
+  const available = tracks.filter(t => !_playedTrackTitles.has(t.title));
+  const pool = available.length > 0 ? available : tracks;
+  const track = pool[Math.floor(Math.random() * pool.length)];
+  _playedTrackTitles.add(track.title);
+
+  if (!track.previewUrl) {
+    try {
+      const q = encodeURIComponent(`${track.title} ${track.artist}`);
+      const res = await fetch(`https://corsproxy.io/?https://api.deezer.com/search?q=${q}&limit=1`);
+      const data = await res.json();
+      track.previewUrl = data.data?.[0]?.preview || null;
+    } catch (e) {
+      console.error('[deezer] fetch error', e);
+    }
+  }
+
+  GAME.currentTrack = track;
+  const audio = document.getElementById('gameAudio');
+  if (track.previewUrl) {
+    audio.src = track.previewUrl;
+    audio.play().catch(e => console.error('[audio] play error', e));
+    document.getElementById('vinyl').classList.add('spinning');
+    document.getElementById('gameStatus').textContent = "Écoute bien l'extrait…";
+  } else {
+    document.getElementById('gameStatus').textContent = '⚠ Pas de preview — levez la main quand même !';
+  }
+}
+
+function startRound() {
+  document.getElementById('startRoundBtn').style.display = 'none';
+  document.getElementById('roundNum').textContent = GAME.round;
+  document.getElementById('roundTotal').textContent = GAME.totalRounds;
+  document.getElementById('timer').textContent = '–';
+  document.getElementById('timer').classList.remove('urgent');
+  document.getElementById('speakerName').textContent = "En attente d'une main levée…";
+  document.getElementById('gameStatus').textContent = 'Chargement…';
+  playAudioClip();
 }
 
 function onPlayerBuzz(playerIndex) {
