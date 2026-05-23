@@ -43,10 +43,6 @@
         <div class="hank-card" id="hankFeedback">
           <img id="hankImg" src="assets/images/hank-angry.png" alt="Hank">
           <span class="hank-msg" id="hankMsg">Lève la main, bon sang !</span>
-          <button class="btn btn-ghost" style="width:100%;border-radius:0;font-size:12px;padding:8px"
-            onmousedown="setHankMood(true)" onmouseup="setHankMood(false)" ontouchstart="setHankMood(true)" ontouchend="setHankMood(false)">
-            ✋ Maintenir = main levée (debug)
-          </button>
         </div>
 
         <div class="card settings-card">
@@ -130,9 +126,7 @@
           <video id="recogVideo" class="cam-video" autoplay playsinline muted></video>
         </div>
         <p class="recog-progress" id="recogProgress">Joueur 1 / 2</p>
-        <div class="footer-nav" style="justify-content:center">
-          <button class="btn btn-ghost" onclick="playerRecognized()">✓ Simuler main levée (debug)</button>
-        </div>
+        <div class="footer-nav" style="justify-content:center"></div>
       </div>
     </section>
 
@@ -203,17 +197,6 @@
   </main>
 </div>
 
-<div id="speechDebug" style="display:none;position:fixed;bottom:56px;left:0;right:0;text-align:center;font-size:13px;color:#7be0c0;background:rgba(0,0,0,.6);padding:6px 12px;z-index:999;font-family:monospace">🎤 <span id="speechDebugText">…</span></div>
-
-<div id="debugBar" style="display:none">
-  <span class="dbg-label">debug</span>
-  <button style="background:#7be0c0;color:#1a0f2e" onclick="showSaul(true)">✅ Bonne réponse</button>
-  <button style="background:#ff9b9b;color:#1a0f2e" onclick="showSaul(false)">❌ Mauvaise réponse</button>
-  <button style="background:#ffc23c;color:#1a0f2e" onclick="playerRecognized()">✋ Main levée (recog)</button>
-  <button style="background:#534ab7;color:#fff" onclick="endGame()">🏁 Fin de partie</button>
-  <button style="background:#d4537e;color:#fff" onclick="bumpScore(0)">✨ +pts joueur 1</button>
-  <button style="background:#1a8a5a;color:#fff" onclick="debugSpeech()">🎤 Test micro direct</button>
-</div>
 
 <audio id="menuMusic" src="assets/musics/lets-groove.mp3" loop></audio>
 <audio id="gameAudio" preload="auto"></audio>

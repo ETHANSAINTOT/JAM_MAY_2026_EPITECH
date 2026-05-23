@@ -701,34 +701,6 @@
   }
 
   /* ----- Barre de debug ----- */
-  #debugBar {
-    position: fixed;
-    bottom: 16px;
-    right: 16px;
-    z-index: 200;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-items: flex-end;
-  }
-  #debugBar button {
-    font-family: var(--font-body);
-    font-size: 12px;
-    font-weight: 700;
-    padding: 7px 14px;
-    border: none;
-    border-radius: 999px;
-    cursor: pointer;
-    opacity: 0.85;
-  }
-  #debugBar button:hover { opacity: 1; }
-  .dbg-label {
-    font-size: 10px;
-    color: #6a5f7a;
-    text-align: right;
-    letter-spacing: .5px;
-    text-transform: uppercase;
-  }
 .game-cam {
   width: 180px;
   height: 120px;

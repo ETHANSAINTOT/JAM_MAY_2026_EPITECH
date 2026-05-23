@@ -742,8 +742,7 @@ async function _startRecogDetection() {
   if (!_camStream) {
     try {
       _camStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    } catch (err) {
-      console.error('[camera] getUserMedia échec (recog) :', err);
+    } catch (_) {
       return;
     }
   }
@@ -845,8 +844,6 @@ function go(screen) {
   const _mm = document.getElementById('menuMusic');
   if (screen === 'menu') { if (_mm && GAME.menuMusicOn) _mm.play().catch(() => {}); }
   if (screen === 'recog' || screen === 'game') { if (_mm) _mm.pause(); }
-  document.getElementById('debugBar').style.display =
-    (screen === 'game' || screen === 'result') ? 'flex' : 'none';
 }
 
 /* =========================================================================
@@ -882,8 +879,7 @@ async function testCamera() {
         setHankMood(detected);
       });
     };
-  } catch (err) {
-    console.error('[camera] getUserMedia échec :', err);
+  } catch (_) {
     setStatus('camStatus', false);
     setHankMood(false);
   }
@@ -940,9 +936,7 @@ async function testMic() {
     }
 
     _animateMicLevel();
-  } catch (err) {
-    console.error('[micro] erreur exacte :', err);
-
+  } catch (_) {
     setStatus('micStatus', false);
 
     if (status !== null) {
@@ -1016,7 +1010,7 @@ function _stopMicTest() {
 
 function startListening() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { console.warn('[speech] Web Speech API non disponible'); return; }
+  if (!SR) return;
 
   stopListening();
   _recognitionActive = true;
@@ -1030,52 +1024,27 @@ function startListening() {
 
   _stopMicTest();
 
-  const dbg = document.getElementById('speechDebug');
-  const dbgTxt = document.getElementById('speechDebugText');
-  if (dbg) dbg.style.display = 'block';
-
-  rec.onstart = () => {
-    if (dbgTxt) dbgTxt.textContent = 'écoute…';
-    console.log('[speech] onstart');
-  };
-
-  rec.onspeechstart = () => {
-    if (dbgTxt) dbgTxt.textContent = 'parole détectée…';
-    console.log('[speech] onspeechstart');
-  };
-
   rec.onresult = (e) => {
     const result = e.results[e.results.length - 1];
-    const transcript = result[0].transcript;
-    if (dbgTxt) dbgTxt.textContent = result.isFinal ? `✓ "${transcript}"` : transcript;
     if (!result.isFinal) return;
-    // Ne traiter que si un joueur a buzzé et que le timer tourne
     if (GAME.buzzerIndex === undefined || _buzzTimerInterval === null) return;
-    checkAnswer(transcript);
+    checkAnswer(result[0].transcript);
   };
 
-  rec.onerror = (e) => {
-    if (e.error === 'aborted') return;
-    if (dbgTxt) dbgTxt.textContent = `⚠ ${e.error}`;
-    console.warn('[speech] onerror :', e.error);
-  };
+  rec.onerror = (e) => { if (e.error === 'aborted') return; };
 
   rec.onend = () => {
-    console.log('[speech] onend, active=', _recognitionActive);
-    if (dbgTxt && _recognitionActive) dbgTxt.textContent = 'redémarre…';
     if (_recognitionActive && _recognition === rec) {
       setTimeout(() => { if (_recognitionActive) { try { rec.start(); } catch(_) {} } }, 100);
     }
   };
 
-  try { rec.start(); } catch (e) { console.error('[speech] start error:', e); }
+  try { rec.start(); } catch (_) {}
 }
 
 function stopListening() {
   _recognitionActive = false;
   if (_recognition) { _recognition.abort(); _recognition = null; }
-  const dbg = document.getElementById('speechDebug');
-  if (dbg) dbg.style.display = 'none';
 }
 
 /* =========================================================================
@@ -1300,7 +1269,6 @@ async function _fetchPreview(track) {
     track.previewUrl = data.data?.[0]?.preview ?? null;
   } catch (e) {
     track.previewUrl = null;
-    console.error('[deezer] fetch error', e);
   }
 }
 
@@ -1335,7 +1303,7 @@ async function playAudioClip() {
   GAME.currentTrack = track;
   const audio = document.getElementById('gameAudio');
   audio.src = track.previewUrl;
-  audio.play().catch(e => console.error('[audio] play error', e));
+  audio.play().catch(() => {});
   document.getElementById('vinyl').classList.add('spinning');
   document.getElementById('gameStatus').textContent = "Écoute bien l'extrait…";
 }
@@ -1363,7 +1331,9 @@ function _startRoundTimer() {
       const hint = document.getElementById('hintZone');
       if (hint) {
         const t = GAME.currentTrack;
-        hint.textContent = `Indice : « ${t.title[0].toUpperCase()}… » — ${t.artist[0].toUpperCase()}…`;
+        const ti = t.title?.[0]?.toUpperCase() ?? '?';
+        const ar = t.artist?.[0]?.toUpperCase() ?? '?';
+        hint.textContent = `Indice : « ${ti}… » — ${ar}…`;
         hint.classList.add('visible');
       }
     }
@@ -1448,7 +1418,7 @@ function onPlayerBuzz(playerIndex) {
   speakerEl.classList.remove('buzz-anim');
   void speakerEl.offsetWidth;
   speakerEl.classList.add('buzz-anim');
-  document.getElementById('gameStatus').textContent = 'Réponds au micro !';
+  document.getElementById('gameStatus').innerHTML = '🎤 Réponds au micro !';
   GAME.buzzerIndex = playerIndex;
   renderScoreboard();
 
@@ -1509,7 +1479,7 @@ function checkAnswer(transcript) {
 function resumeAfterFailedBuzz() {
   GAME.buzzerIndex = undefined;
   document.getElementById('speakerName').textContent = "À qui le tour ?";
-  document.getElementById('gameStatus').textContent = "Quelqu'un d'autre peut essayer !";
+  document.getElementById('gameStatus').innerHTML = "Quelqu'un d'autre peut essayer !";
   document.getElementById('timer').textContent = '–';
   document.getElementById('timer').classList.remove('urgent');
   document.getElementById('gameAudio').play().catch(() => {});
@@ -1626,6 +1596,7 @@ function quitGame() {
   stopListening();
   document.getElementById('gameAudio').pause();
   document.getElementById('vinyl').classList.remove('spinning');
+  document.getElementById('countdownOverlay').classList.remove('active');
   go('menu');
 }
 
@@ -1681,31 +1652,6 @@ function replayGame() {
   GAME.history = [];
   GAME.selectedTheme = null;
   go('theme');
-}
-
-/* ----- debug speech ----- */
-function debugSpeech() {
-  stopListening();
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const dbgTxt = document.getElementById('speechDebugText');
-  const dbg = document.getElementById('speechDebug');
-  if (!SR) { alert('SpeechRecognition non disponible sur ce navigateur'); return; }
-  if (dbg) dbg.style.display = 'block';
-  const r = new SR();
-  r.lang = 'fr-FR';
-  r.continuous = false;
-  r.interimResults = true;
-  r.onstart   = () => { console.log('[dbg] onstart'); if (dbgTxt) dbgTxt.textContent = 'onstart — écoute…'; };
-  r.onspeechstart = () => { console.log('[dbg] onspeechstart'); if (dbgTxt) dbgTxt.textContent = 'parole détectée…'; };
-  r.onresult  = (e) => {
-    const t = e.results[0][0].transcript;
-    console.log('[dbg] onresult:', t, 'final:', e.results[0].isFinal);
-    if (dbgTxt) dbgTxt.textContent = (e.results[0].isFinal ? '✓ ' : '') + t;
-  };
-  r.onerror   = (e) => { console.warn('[dbg] onerror:', e.error); if (dbgTxt) dbgTxt.textContent = '⚠ ' + e.error; };
-  r.onend     = () => { console.log('[dbg] onend'); };
-  r.start();
-  console.log('[dbg] start() appelé');
 }
 
 /* ----- initialisation ----- */
