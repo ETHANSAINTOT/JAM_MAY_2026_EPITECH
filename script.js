@@ -822,18 +822,129 @@ async function testCamera() {
   }
 }
 
-function testMic() {
-  // >>> Membre 3 : remplacer ce stub par l'accès réel au micro <<<
-  console.log('[STUB] testMic() — à implémenter par le membre 3');
-  setStatus('micStatus', true);             // simulation
-  // petite démo d'animation de la barre :
-  let v = 0, up = true;
+let _micStream = null;
+let _micAudioContext = null;
+let _micAnalyser = null;
+let _micDataArray = null;
+let _micAnimationFrame = null;
+
+async function testMic() {
   const bar = document.getElementById('micLevel');
-  const demo = setInterval(() => {
-    v += up ? 12 : -12; if (v > 90) up = false; if (v < 10) up = true;
-    bar.style.width = v + '%';
-  }, 80);
-  setTimeout(() => { clearInterval(demo); bar.style.width = '0%'; }, 2500);
+  const status = document.getElementById('micStatus');
+
+  try {
+    _stopMicTest();
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('getUserMedia non disponible');
+    }
+
+    _micStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: false
+    });
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+
+    if (!AudioCtx) {
+      throw new Error('AudioContext non disponible');
+    }
+
+    _micAudioContext = new AudioCtx();
+
+    if (_micAudioContext.state === 'suspended') {
+      await _micAudioContext.resume();
+    }
+
+    const source = _micAudioContext.createMediaStreamSource(_micStream);
+
+    _micAnalyser = _micAudioContext.createAnalyser();
+    _micAnalyser.fftSize = 2048;
+    _micAnalyser.smoothingTimeConstant = 0.75;
+
+    _micDataArray = new Uint8Array(_micAnalyser.fftSize);
+
+    source.connect(_micAnalyser);
+
+    setStatus('micStatus', true);
+
+    if (status !== null) {
+      status.textContent = '✓ Micro actif';
+    }
+
+    _animateMicLevel();
+  } catch (err) {
+    console.error('[micro] erreur exacte :', err);
+
+    setStatus('micStatus', false);
+
+    if (status !== null) {
+      status.textContent = '✗ Problème micro : ' + err.name;
+    }
+
+    if (bar !== null) {
+      bar.style.width = '0%';
+    }
+  }
+}
+
+function _animateMicLevel() {
+  const bar = document.getElementById('micLevel');
+
+  if (_micAnalyser === null || _micDataArray === null || bar === null) {
+    return;
+  }
+
+  _micAnalyser.getByteTimeDomainData(_micDataArray);
+
+  let sum = 0;
+
+  for (let i = 0; i < _micDataArray.length; i++) {
+    const value = (_micDataArray[i] - 128) / 128;
+
+    sum += value * value;
+  }
+
+  const rms = Math.sqrt(sum / _micDataArray.length);
+  let level = Math.round(rms * 350);
+
+  if (level < 3) {
+    level = 0;
+  }
+
+  if (level > 100) {
+    level = 100;
+  }
+
+  bar.style.width = level + '%';
+
+  _micAnimationFrame = requestAnimationFrame(_animateMicLevel);
+}
+
+function _stopMicTest() {
+  const bar = document.getElementById('micLevel');
+
+  if (_micAnimationFrame !== null) {
+    cancelAnimationFrame(_micAnimationFrame);
+    _micAnimationFrame = null;
+  }
+
+  if (_micStream !== null) {
+    _micStream.getTracks().forEach(track => track.stop());
+    _micStream = null;
+  }
+
+  if (_micAudioContext !== null && _micAudioContext.state !== 'closed') {
+    _micAudioContext.close();
+  }
+
+  _micAudioContext = null;
+  _micAnalyser = null;
+  _micDataArray = null;
+
+  if (bar !== null) {
+    bar.style.width = '0%';
+  }
 }
 
 /* =========================================================================
