@@ -154,6 +154,7 @@
         </div>
 
         <div class="footer-nav">
+          <button class="btn btn-primary" id="startRoundBtn" onclick="startRound()" style="display:none;width:100%">▶ C'est parti !</button>
           <button class="btn btn-secondary" onclick="quitGame()">⏹ Quitter</button>
         </div>
       </div>
@@ -200,6 +201,7 @@
   <button style="background:#d4537e;color:#fff" onclick="bumpScore(0)">✨ +pts joueur 1</button>
 </div>
 
+<audio id="menuMusic" src="assets/musics/lets-groove.mp3" loop></audio>
 <audio id="gameAudio" preload="auto"></audio>
 
 <div class="confetti-wrap" id="confettiWrap"></div>
