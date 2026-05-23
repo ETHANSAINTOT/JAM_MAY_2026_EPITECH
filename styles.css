@@ -236,6 +236,8 @@
     margin: 14px 0; display: flex; align-items: center; justify-content: center;
     color: #6a5f7a; font-size: 13px; overflow: hidden;
   }
+  /* flux vidéo branchés par le membre 2 */
+  .cam-video { width: 100%; height: 100%; object-fit: cover; display: block; transform: scaleX(-1); }
   /* barre de niveau micro (le membre 3 anime sa largeur) */
   .mic-meter { height: 12px; border-radius: 999px; background: rgba(0,0,0,0.4); overflow: hidden; margin: 14px 0; }
   .mic-meter > span {
