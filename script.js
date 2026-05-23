@@ -695,6 +695,27 @@ async function _startRecogDetection() {
   });
 }
 
+function _startGameDetection() {
+  const video = document.getElementById('recogVideo');
+  _initHandDetection(video, (detected, landmarks) => {
+    if (!detected || _buzzCooldown || GAME.screen !== 'game') return;
+    _buzzCooldown = true;
+
+    let playerIndex = 0;
+    if (_playerZones.length > 0 && landmarks) {
+      const handX = landmarks[0].x;
+      let minDist = Infinity;
+      _playerZones.forEach((zx, i) => {
+        const dist = Math.abs(zx - handX);
+        if (dist < minDist) { minDist = dist; playerIndex = i; }
+      });
+    }
+
+    onPlayerBuzz(playerIndex);
+    setTimeout(() => { _buzzCooldown = false; }, 2000);
+  });
+}
+
 function _stopHandDetection() {
   if (_mpCamera) { _mpCamera.stop(); _mpCamera = null; }
   if (_mpHands)  { _mpHands.close(); _mpHands = null; }
@@ -894,6 +915,7 @@ function startGame() {
   renderScoreboard();
   document.getElementById('roundNum').textContent   = GAME.round;
   document.getElementById('roundTotal').textContent = GAME.totalRounds;
+  _startGameDetection();
   // >>> HOOK Membre 4 : lancer la 1re manche <<<
   // Utilise GAME.selectedTheme.tracks pour la liste des musiques du thème choisi.
 }
