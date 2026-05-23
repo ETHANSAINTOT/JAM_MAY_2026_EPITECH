@@ -1656,3 +1656,10 @@ function replayGame() {
 
 /* ----- initialisation ----- */
 renderPlayerInputs();
+
+// Lance la musique de menu au premier clic (requis par la politique autoplay de Chrome)
+document.addEventListener('click', function _startMenuMusic() {
+  const m = document.getElementById('menuMusic');
+  if (m && GAME.menuMusicOn && GAME.screen === 'menu') m.play().catch(() => {});
+  document.removeEventListener('click', _startMenuMusic);
+}, { once: true });
