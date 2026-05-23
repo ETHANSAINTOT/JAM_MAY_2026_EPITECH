@@ -693,6 +693,8 @@ function setStatus(id, ok) {
 
 /* ----- STUBS à remplacer par les membres 2 et 3 ----- */
 let cameraStream = null;
+let cameraVideo = null;
+let handDetectionInterval = null;
 
 async function testCamera() {
   const preview = document.getElementById('settingsCamPreview');
@@ -705,26 +707,101 @@ async function testCamera() {
 
     preview.innerHTML = '';
 
-    const video = document.createElement('video');
-    video.srcObject = cameraStream;
-    video.autoplay = true;
-    video.playsInline = true;
-    video.muted = true;
+    cameraVideo = document.createElement('video');
+    cameraVideo.srcObject = cameraStream;
+    cameraVideo.autoplay = true;
+    cameraVideo.playsInline = true;
+    cameraVideo.muted = true;
 
-    video.style.width = '100%';
-    video.style.height = '100%';
-    video.style.objectFit = 'cover';
-    video.style.borderRadius = '16px';
+    cameraVideo.style.width = '100%';
+    cameraVideo.style.height = '100%';
+    cameraVideo.style.objectFit = 'cover';
+    cameraVideo.style.borderRadius = '16px';
 
-    preview.appendChild(video);
+    preview.appendChild(cameraVideo);
+
     setStatus('camStatus', true);
+    startHandDetection();
   } catch (error) {
     console.error('Erreur caméra:', error);
     setStatus('camStatus', false);
     preview.textContent = 'Caméra refusée ou indisponible';
+    setHankMood(false);
   }
 }
 
+function startHandDetection() {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  let previousFrame = null;
+
+  if (handDetectionInterval !== null) {
+    clearInterval(handDetectionInterval);
+  }
+
+  handDetectionInterval = setInterval(() => {
+    if (cameraVideo === null || cameraVideo.videoWidth === 0) {
+      return;
+    }
+
+    canvas.width = cameraVideo.videoWidth;
+    canvas.height = cameraVideo.videoHeight;
+
+    ctx.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+
+    const topHeight = Math.floor(canvas.height * 0.35);
+    const currentFrame = ctx.getImageData(0, 0, canvas.width, topHeight);
+
+    if (previousFrame === null) {
+      previousFrame = currentFrame;
+      return;
+    }
+
+    const movement = getFrameMovement(previousFrame.data, currentFrame.data);
+    previousFrame = currentFrame;
+
+    if (movement > 700) {
+      setHankMood(true);
+    } else {
+      setHankMood(false);
+    }
+  }, 150);
+}
+
+function getFrameMovement(previousData, currentData) {
+  let movement = 0;
+
+  for (let i = 0; i < currentData.length; i += 16) {
+    const redDiff = Math.abs(currentData[i] - previousData[i]);
+    const greenDiff = Math.abs(currentData[i + 1] - previousData[i + 1]);
+    const blueDiff = Math.abs(currentData[i + 2] - previousData[i + 2]);
+
+    if (redDiff + greenDiff + blueDiff > 80) {
+      movement++;
+    }
+  }
+
+  return movement;
+}
+
+function updateHandStatus(movement) {
+  const previewImage = document.getElementById('handPreviewImage');
+  const handText = document.getElementById('handDetectionText');
+
+  if (previewImage === null || handText === null) {
+    return;
+  }
+
+  if (movement > 900) {
+    previewImage.src = 'assets/man_happy.png';
+    handText.textContent = 'Main détectée, bien joué !';
+    handText.style.color = '#22c55e';
+  } else {
+    previewImage.src = 'assets/man_angry.png';
+    handText.textContent = 'Main non détectée';
+    handText.style.color = '#ef4444';
+  }
+}
 function testMic() {
   // >>> Membre 3 : remplacer ce stub par l'accès réel au micro <<<
   console.log('[STUB] testMic() — à implémenter par le membre 3');
