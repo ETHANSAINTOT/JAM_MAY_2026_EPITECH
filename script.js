@@ -1223,12 +1223,25 @@ function onPlayerBuzz(playerIndex) {
 }
 
 function checkAnswer(transcript) {
-  // >>> Membres 3 & 4 : comparer transcript à GAME.currentTrack.title / .artist
-  //     3 pts si titre OU artiste, 5 pts si les deux.
-  //     Appeler bumpScore(playerIndex) si points > 0.
-  //     Appeler showSaul(points > 0).
-  //     Appeler showRoundResult(track, playerIndex, points). <<<
-  console.log('[STUB] checkAnswer()', transcript);
+  clearInterval(_buzzTimerInterval);
+  _buzzTimerInterval = null;
+  const track = GAME.currentTrack;
+  const norm = s => s.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const matchTitle  = norm(transcript).includes(norm(track.title));
+  const matchArtist = norm(transcript).includes(norm(track.artist));
+
+  let points = 0;
+  if (matchTitle && matchArtist) points = 5;
+  else if (matchTitle || matchArtist) points = 3;
+
+  if (points > 0) {
+    GAME.players[GAME.buzzerIndex].score += points;
+    bumpScore(GAME.buzzerIndex);
+  }
+  showSaul(points > 0);
+  setTimeout(() => showRoundResult(track, GAME.buzzerIndex, points), 2200);
 }
 
 function nextRound() {
