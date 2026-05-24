@@ -43,6 +43,7 @@ const THEMES = [
       { title: 'Ne me quitte pas', artist: 'Jacques Brel' },
       { title: 'Aux Champs-Élysées', artist: 'Joe Dassin' },
       { title: 'La Javanaise', artist: 'Serge Gainsbourg' },
+      { title: 'Let\'s Groove', artist: 'Earth, Wind & Fire' },
     ]
   },
   {
